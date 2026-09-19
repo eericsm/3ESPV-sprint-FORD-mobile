@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -36,12 +36,13 @@ export default function LoginScreen() {
 
     return (
         <Screen>
-            <Section title="Entrar" subtitle="Use o Supabase quando as variaveis de ambiente estiverem configuradas.">
+            <Section title="Entrar" subtitle="Acesse sua conta para ver recomendações, comparar modelos e agendar visitas.">
                 <View style={styles.form}>
                     <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor="#6F8398" autoCapitalize="none" keyboardType="email-address" />
                     <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Senha" placeholderTextColor="#6F8398" secureTextEntry />
                     {message ? <Text style={styles.message}>{message}</Text> : null}
                     {loading ? <ActivityIndicator color="#9FD4FF" /> : <PrimaryButton label="Entrar" onPress={handleLogin} />}
+                    <Text style={styles.registerText}>Ainda não tem conta? <Link href="/cadastro" style={styles.registerLink}>Criar conta</Link></Text>
                 </View>
             </Section>
         </Screen>
@@ -54,16 +55,25 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        color: '#F5F8FC',
+        borderColor: '#B8C9D8',
+        color: '#102A43',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     message: {
-        color: '#F3B1B1',
+        color: '#B42318',
         fontSize: 13,
         lineHeight: 18,
+    },
+    registerText: {
+        color: '#526B82',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+    registerLink: {
+        color: '#1261A0',
+        fontWeight: '800',
     },
 });

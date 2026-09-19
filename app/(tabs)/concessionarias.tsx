@@ -1,5 +1,7 @@
 import * as Location from 'expo-location';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 
 import { PrimaryButton } from '../../src/components/PrimaryButton';
@@ -20,6 +22,7 @@ function distanceKm(a: { latitude: number; longitude: number }, b: { latitude: n
 }
 
 export default function ConcessionariasScreen() {
+    const router = useRouter();
     const [origin, setOrigin] = useState<Location.LocationObjectCoords | null>(null);
     const [filter, setFilter] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -70,6 +73,13 @@ export default function ConcessionariasScreen() {
             </Section>
 
             <Section title="Lojas proximas" subtitle={`${visible.length} unidades encontradas`}>
+                <MapView
+                    style={styles.map}
+                    initialRegion={{ latitude: -23.58, longitude: -46.67, latitudeDelta: 0.35, longitudeDelta: 0.35 }}
+                    showsUserLocation={Boolean(origin)}
+                >
+                    {visible.map((item) => <Marker key={item.id} coordinate={{ latitude: item.latitude, longitude: item.longitude }} title={item.name} description={item.address} />)}
+                </MapView>
                 {visible.map((item) => (
                     <View key={item.id} style={styles.card}>
                         <View style={styles.cardHeader}>
@@ -96,6 +106,7 @@ export default function ConcessionariasScreen() {
                         >
                             <Text style={styles.linkText}>Abrir rota</Text>
                         </Pressable>
+                        <PrimaryButton label="Agendar aqui" onPress={() => router.push({ pathname: '/agendamentos', params: { dealership: item.name } })} variant="secondary" />
                     </View>
                 ))}
             </Section>
@@ -109,14 +120,19 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 10,
     },
+    map: {
+        height: 240,
+        borderRadius: 4,
+        marginBottom: 12,
+    },
     error: {
-        color: '#F3B1B1',
+        color: '#B42318',
         fontSize: 13,
     },
     card: {
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         borderRadius: 20,
         padding: 16,
         gap: 12,
@@ -127,12 +143,12 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     cardTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 17,
         fontWeight: '800',
     },
     cardMeta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 13,
         marginTop: 2,
     },
@@ -141,9 +157,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 10,
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#F2F6F9',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#B8C9D8',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -157,7 +173,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     hours: {
-        color: '#D3DFEA',
+        color: '#315B7D',
         fontSize: 13,
     },
     link: {
@@ -165,7 +181,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
         borderRadius: 999,
-        backgroundColor: '#2F74FF',
+        backgroundColor: '#1261A0',
     },
     linkText: {
         color: '#FFFFFF',

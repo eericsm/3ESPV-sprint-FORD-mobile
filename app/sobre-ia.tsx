@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
         gap: 12,
         padding: 16,
         borderRadius: 20,
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#22354A',
     },
@@ -57,12 +57,12 @@ const styles = StyleSheet.create({
         fontWeight: '900',
     },
     stepTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 16,
         fontWeight: '800',
     },
     stepText: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 13,
         lineHeight: 19,
         marginTop: 4,

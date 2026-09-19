@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -20,8 +20,15 @@ const defaultAppointment: Appointment = {
 };
 
 export default function AgendamentosScreen() {
+    const params = useLocalSearchParams<{ dealership?: string }>();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [draft, setDraft] = useState(defaultAppointment);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (params.dealership) setDraft((current) => ({ ...current, dealership: String(params.dealership) }));
+        }, [params.dealership]),
+    );
 
     useFocusEffect(
         useCallback(() => {
@@ -64,16 +71,20 @@ export default function AgendamentosScreen() {
 
     return (
         <Screen>
-            <Section title="Agendamentos" subtitle="Cadastre test-drives, revisoes e avaliacoes com persistencia local no aparelho.">
+            <Section title="Agendamentos" subtitle="Escolha o atendimento, a concessionária e o melhor horário para você.">
                 <View style={styles.form}>
-                    <TextInput style={styles.input} value={draft.type} onChangeText={(type) => setDraft((current) => ({ ...current, type }))} placeholder="Tipo" placeholderTextColor="#6F8398" />
-                    <TextInput style={styles.input} value={draft.model} onChangeText={(model) => setDraft((current) => ({ ...current, model }))} placeholder="Modelo" placeholderTextColor="#6F8398" />
-                    <TextInput style={styles.input} value={draft.dealership} onChangeText={(dealership) => setDraft((current) => ({ ...current, dealership }))} placeholder="Concessionaria" placeholderTextColor="#6F8398" />
+                    <Text style={styles.fieldLabel}>Tipo de atendimento</Text>
+                    <View style={styles.choiceRow}>{['Test-drive', 'Revisao', 'Avaliacao'].map((type) => <Tag key={type} label={type} active={draft.type === type} onPress={() => setDraft((current) => ({ ...current, type }))} />)}</View>
+                    <Text style={styles.fieldLabel}>Modelo</Text>
+                    <View style={styles.choiceRow}>{fordModels.slice(0, 6).map((model) => <Tag key={model.id} label={model.name} active={draft.model === model.name} onPress={() => setDraft((current) => ({ ...current, model: model.name }))} />)}</View>
+                    <Text style={styles.fieldLabel}>Concessionaria</Text>
+                    <View style={styles.choiceRow}>{dealerships.map((dealership) => <Tag key={dealership.id} label={dealership.name.replace('Ford ', '')} active={draft.dealership === dealership.name} onPress={() => setDraft((current) => ({ ...current, dealership: dealership.name }))} />)}</View>
+                    <Text style={styles.fieldLabel}>Data e horario</Text>
                     <View style={styles.row}>
                         <TextInput style={[styles.input, styles.flex]} value={draft.date} onChangeText={(date) => setDraft((current) => ({ ...current, date }))} placeholder="YYYY-MM-DD" placeholderTextColor="#6F8398" />
                         <TextInput style={[styles.input, styles.flex]} value={draft.time} onChangeText={(time) => setDraft((current) => ({ ...current, time }))} placeholder="HH:MM" placeholderTextColor="#6F8398" />
                     </View>
-                    <TextInput style={styles.input} value={draft.note} onChangeText={(note) => setDraft((current) => ({ ...current, note }))} placeholder="Observacao" placeholderTextColor="#6F8398" />
+                    <TextInput style={styles.input} value={draft.note} onChangeText={(note) => setDraft((current) => ({ ...current, note }))} placeholder="Observacao ou necessidade especial" placeholderTextColor="#6F8398" />
                     <PrimaryButton label="Salvar agendamento" onPress={addAppointment} />
                 </View>
             </Section>
@@ -108,6 +119,17 @@ const styles = StyleSheet.create({
     form: {
         gap: 10,
     },
+    fieldLabel: {
+        color: '#315B7D',
+        fontSize: 12,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+    },
+    choiceRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
     row: {
         flexDirection: 'row',
         gap: 10,
@@ -117,10 +139,10 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        color: '#F5F8FC',
+        borderColor: '#B8C9D8',
+        color: '#102A43',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
@@ -128,9 +150,9 @@ const styles = StyleSheet.create({
         height: 10,
     },
     card: {
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         borderRadius: 20,
         padding: 16,
         gap: 10,
@@ -140,12 +162,12 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     cardTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 17,
         fontWeight: '800',
     },
     cardMeta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 13,
         marginTop: 2,
     },
@@ -155,7 +177,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     cardNote: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 13,
     },
 });

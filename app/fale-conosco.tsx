@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Linking } from 'react-native';
+import { useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -9,6 +11,7 @@ import { faqAnswers } from '../src/data/ford';
 type Message = { author: 'seia' | 'usuario'; text: string };
 
 export default function FaleConoscoScreen() {
+    const router = useRouter();
     const [query, setQuery] = useState('');
     const [messages, setMessages] = useState<Message[]>([
         { author: 'seia', text: 'Oi, eu sou a SEIA. Posso ajudar com agendamentos, modelos, concessionarias e termos.' },
@@ -48,10 +51,16 @@ export default function FaleConoscoScreen() {
 
             <Section title="Atalhos" subtitle="Abrindo as areas mais pedidas.">
                 <View style={styles.shortcutRow}>
-                    {['Agendamentos', 'Modelos', 'Concessionarias', 'Perfil'].map((item) => (
-                        <Text key={item} style={styles.shortcut}>{item}</Text>
+                    {[
+                        ['Agendamentos', '/agendamentos'],
+                        ['Modelos', '/modelos'],
+                        ['Concessionarias', '/concessionarias'],
+                        ['Perfil', '/perfil'],
+                    ].map(([item, route]) => (
+                        <Pressable key={item} onPress={() => router.push(route as '/perfil')}><Text style={styles.shortcut}>{item}</Text></Pressable>
                     ))}
                 </View>
+                <PrimaryButton label="Ligar para o atendimento" onPress={() => Linking.openURL('tel:+551140004000')} variant="secondary" />
             </Section>
         </Screen>
     );
@@ -59,10 +68,10 @@ export default function FaleConoscoScreen() {
 
 const styles = StyleSheet.create({
     chat: {
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         padding: 16,
         gap: 10,
     },
@@ -72,15 +81,15 @@ const styles = StyleSheet.create({
         maxWidth: '92%',
     },
     botBubble: {
-        backgroundColor: '#13253C',
+        backgroundColor: '#E8F0F7',
         alignSelf: 'flex-start',
     },
     userBubble: {
-        backgroundColor: '#2F74FF',
+        backgroundColor: '#1261A0',
         alignSelf: 'flex-end',
     },
     bubbleText: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 14,
         lineHeight: 20,
     },
@@ -95,10 +104,10 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        color: '#F5F8FC',
+        borderColor: '#B8C9D8',
+        color: '#102A43',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
@@ -108,11 +117,11 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     shortcut: {
-        color: '#C9D6E2',
+        color: '#315B7D',
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 999,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#22354A',
         fontSize: 12,

@@ -27,13 +27,13 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     title: {
-        color: '#F4F7FB',
+        color: '#102A43',
         fontSize: 20,
         fontWeight: '800',
         letterSpacing: 0.2,
     },
     subtitle: {
-        color: '#9FB3C8',
+        color: '#526B82',
         fontSize: 13,
         lineHeight: 18,
     },

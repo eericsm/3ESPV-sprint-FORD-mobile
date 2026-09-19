@@ -36,12 +36,13 @@ export default function CadastroScreen() {
 
     return (
         <Screen>
-            <Section title="Criar conta" subtitle="Fluxo inicial com Supabase pronto para conectar depois ao backend oficial.">
+            <Section title="Criar conta" subtitle="Cadastre-se agora e encontre a versão ideal para a sua rotina.">
                 <View style={styles.form}>
                     <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor="#6F8398" autoCapitalize="none" keyboardType="email-address" />
                     <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Senha" placeholderTextColor="#6F8398" secureTextEntry />
                     {message ? <Text style={styles.message}>{message}</Text> : null}
                     {loading ? <ActivityIndicator color="#9FD4FF" /> : <PrimaryButton label="Criar conta" onPress={handleRegister} />}
+                    <Text style={styles.registerText}>Já tem uma conta? <Text style={styles.registerLink} onPress={() => router.push('/login')}>Fazer login</Text></Text>
                 </View>
             </Section>
         </Screen>
@@ -54,16 +55,25 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        color: '#F5F8FC',
+        borderColor: '#B8C9D8',
+        color: '#102A43',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     message: {
-        color: '#F3B1B1',
+        color: '#B42318',
         fontSize: 13,
         lineHeight: 18,
+    },
+    registerText: {
+        color: '#526B82',
+        fontSize: 13,
+        textAlign: 'center',
+    },
+    registerLink: {
+        color: '#1261A0',
+        fontWeight: '800',
     },
 });

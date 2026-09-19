@@ -1,28 +1,30 @@
 {
-    "expo": {
-        "name": "SEIA Mobile",
-        "slug": "seia-mobile",
-        "scheme": "seia-mobile",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "userInterfaceStyle": "automatic",
-        "plugins": [
-            "expo-router"
-        ],
-        "android": {
-            "package": "com.seia.mobile"
-        },
-        "ios": {
-            "bundleIdentifier": "com.seia.mobile"
-        },
-        "web": {
-            "bundler": "metro",
-            "output": "static"
-        },
-        "extra": {
-            "router": {
-                "origin": false
-            }
-        }
+  "expo": {
+    "name": "SEIA Mobile",
+    "slug": "seia-mobile",
+    "scheme": "seia-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font"
+    ],
+    "android": {
+      "package": "com.seia.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.seia.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
     }
+  }
 }

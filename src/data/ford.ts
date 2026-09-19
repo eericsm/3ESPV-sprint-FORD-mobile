@@ -247,39 +247,42 @@ export const faqAnswers: Array<{ key: RegExp; answer: string }> = [
     { key: /obrigad|valeu/i, answer: 'Por nada. Se quiser, eu posso te ajudar com agendamento ou escolha do modelo.' },
 ];
 
+const tagDictionary: Record<string, string[]> = {
+    familia: ['família', 'familia', 'filhos', 'crianças', 'criancas', 'esposa', 'marido', 'casal', 'bebê', 'bebe', 'pais', 'cadeirinha'],
+    viagem: ['viagem', 'viajo', 'viajar', 'longa distância', 'longa distancia', 'road trip', 'passeio', 'praia', 'litoral', 'interior'],
+    estrada: ['estrada', 'rodovia', 'pista', 'asfalto', 'br-'],
+    cidade: ['cidade', 'urbano', 'urbana', 'trânsito', 'transito', 'dia a dia', 'cotidiano', 'engarrafamento', 'garagem pequena'],
+    offroad: ['off-road', 'offroad', 'trilha', 'terra', 'estrada de terra', '4x4', 'lama', 'fazenda', 'sítio', 'sitio'],
+    aventura: ['aventura', 'fim de semana', 'camping', 'natureza', 'montanha', 'cachoeira', 'radical'],
+    trabalho: ['trabalho', 'trabalhar', 'entrega', 'comercial', 'empresa', 'uso profissional', 'uber', 'motorista de app', 'vendas'],
+    carga: ['carga', 'transportar', 'mudança', 'mudanca', 'material de construção', 'ferramentas', 'equipamentos', 'peso'],
+    performance: ['performance', 'esportivo', 'esportiva', 'velocidade', 'potência', 'potencia', 'curva', 'acelerar'],
+    economia: ['economia', 'econômico', 'economico', 'consumo', 'combustível', 'combustivel', 'gastar pouco', 'baixo consumo', 'poupar'],
+    eletrico: ['elétrico', 'eletrico', 'elétrica', 'eletrica', 'híbrido', 'hibrido', 'híbrida', 'hibrida', 'carregar', 'tomada', 'sustentável'],
+};
+
 export function detectTags(text: string): string[] {
     const normalized = text.toLowerCase();
-    const tags = new Set<string>();
-    if (/(famil|viag|estrad)/i.test(normalized)) tags.add('familia');
-    if (/(trabalh|cidade|urban|econom)/i.test(normalized)) tags.add('trabalho');
-    if (/(off[- ]?road|trilha|aventur)/i.test(normalized)) tags.add('offroad');
-    if (/(performance|esport|potenc|veloc)/i.test(normalized)) tags.add('performance');
-    if (/(eletric|hibrid)/i.test(normalized)) tags.add('eletrico');
-    return [...tags];
+    return Object.entries(tagDictionary)
+        .filter(([, words]) => words.some((word) => normalized.includes(word)))
+        .map(([tag]) => tag);
 }
 
 export function detectBudget(text: string): number | null {
-    const match = text.replace(/\./g, '').match(/R?\$?\s*(\d{2,6})/i);
-    if (!match) return null;
-    const value = Number(match[1]);
-    return Number.isFinite(value) ? value : null;
+    const match = text.toLowerCase().match(/r?\$?\s*(\d+)\s*mil(?![a-z])/i);
+    return match ? Number(match[1]) * 1000 : null;
 }
 
 export function formatProfile(tags: string[], budget: number | null): string {
-    const label = tags.length ? tags.join(' + ') : 'perfil livre';
-    return budget ? `${label} - ate R$ ${budget.toLocaleString('pt-BR')}` : label;
+    const label = tags.length ? tags.join(', ') : 'sem critérios claros no texto';
+    return budget ? `${label}, até R$ ${(budget / 1000).toFixed(0)} mil` : label;
 }
 
-export function calculateScore(tags: string[], modelTags: string[], price: number, budget: number | null): number {
-    let score = 50;
-    for (const tag of tags) {
-        if (modelTags.includes(tag)) score += 18;
-    }
-    if (budget) {
-        if (price <= budget) score += 10;
-        else if (price > budget * 1.1) score -= 15;
-    }
-    return Math.max(10, Math.min(100, Math.round(score)));
+export function calculateScore(modelTags: string[], tags: string[], price: number, budget: number | null): number {
+    const matches = tags.filter((tag) => modelTags.includes(tag)).length;
+    let score = tags.length ? 45 + matches * 14 : 55;
+    if (budget && price > budget) score -= 30;
+    return Math.max(15, Math.min(97, score));
 }
 
 export function recommendModels(text: string) {
@@ -288,7 +291,7 @@ export function recommendModels(text: string) {
     const ranked = fordModels
         .map((model) => ({
             ...model,
-            score: calculateScore(tags, model.tags, model.price, budget),
+            score: calculateScore(model.tags, tags, model.price, budget),
         }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
@@ -307,7 +310,7 @@ export function carLabel(car: Car): string {
 
 export function carSubtitle(car: Car): string {
     const parts = [car.make, car.yearFrom && car.yearTo ? `${car.yearFrom}-${car.yearTo}` : car.yearFrom ? String(car.yearFrom) : null].filter(Boolean);
-    return parts.length ? parts.join(' · ') : 'Ford API';
+    return parts.length ? parts.join(' · ') : 'Linha Ford';
 }
 
 export function carFacts(car: Car): string[] {
@@ -318,5 +321,5 @@ export function carFacts(car: Car): string[] {
         car.drivetrain ? String(car.drivetrain) : null,
     ].filter(Boolean) as string[];
 
-    return facts.length ? facts : ['Dados da API'];
+    return facts.length ? facts : ['Ficha técnica Ford'];
 }

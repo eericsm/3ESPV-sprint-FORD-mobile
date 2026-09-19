@@ -58,14 +58,18 @@ export default function DashboardScreen() {
             const match = response.items.find((item) => carLabel(item).toLowerCase().includes(query.toLowerCase())) ?? response.items[0] ?? null;
             setSelectedCar(match);
 
-            if (match) {
-                const recommendations = await getRecomendacoes(match.id, 5);
-                setSimilarCars(recommendations.filter((item) => item.id !== match.id));
-            } else {
+            if (!match) {
                 setSimilarCars([]);
+            } else {
+                try {
+                    const recommendations = await getRecomendacoes(match.id, 5);
+                    setSimilarCars(recommendations.filter((item) => item.id !== match.id));
+                } catch {
+                    setSimilarCars([]);
+                }
             }
         } catch {
-            setError('Nao foi possivel se conectar ao backend da Ford.');
+            setError('Não foi possível carregar os dados. Tente novamente.');
             setSuggestions([]);
             setSimilarCars([]);
             setSelectedCar(null);
@@ -92,7 +96,7 @@ export default function DashboardScreen() {
 
     return (
         <Screen>
-            <Section title="Dashboard detalhado" subtitle="Os dados abaixo vem do mesmo backend Ford usado no site.">
+            <Section title="Ficha técnica" subtitle="Consulte potência, velocidade máxima, câmbio e versões de cada modelo Ford.">
                 <View style={styles.searchBox}>
                     <Ionicons name="search" size={18} color="#9FB3C8" />
                     <TextInput
@@ -105,16 +109,18 @@ export default function DashboardScreen() {
                     />
                 </View>
                 <View style={styles.actionRow}>
-                    <PrimaryButton label="Buscar no backend" onPress={() => void loadCars(search)} />
+                    <PrimaryButton label="Gerar análise" onPress={() => void loadCars(search)} />
                     <PrimaryButton label="Ver concessionarias" onPress={() => router.push('/concessionarias')} variant="secondary" />
                 </View>
                 {error ? <Text style={styles.error}>{error}</Text> : null}
             </Section>
 
+            {!loading && !selectedCar && !error ? <View style={styles.emptyState}><Text style={styles.emptyTitle}>Encontre seu modelo Ford</Text><Text style={styles.emptyText}>Digite um modelo como Ranger, Mustang ou Territory para consultar a ficha técnica.</Text></View> : null}
+
             {loading ? (
                 <View style={styles.loadingBox}>
                     <ActivityIndicator color="#9FD4FF" />
-                    <Text style={styles.loadingText}>Carregando dados da API...</Text>
+                    <Text style={styles.loadingText}>Carregando análise...</Text>
                 </View>
             ) : selectedCar ? (
                 <Section title={carLabel(selectedCar)} subtitle={carSubtitle(selectedCar)}>
@@ -131,7 +137,7 @@ export default function DashboardScreen() {
                             </View>
                             <View style={styles.metric}>
                                 <Text style={styles.metricValue}>#{selectedCar.id}</Text>
-                                <Text style={styles.metricLabel}>ID API</Text>
+                                <Text style={styles.metricLabel}>Código do modelo</Text>
                             </View>
                         </View>
                     </View>
@@ -142,7 +148,19 @@ export default function DashboardScreen() {
                 </Section>
             ) : null}
 
-            <Section title="Resultados do backend" subtitle={`${suggestions.length} carros retornados na busca atual.`}>
+            <Section title="Versões encontradas" subtitle={`${suggestions.length} opções encontradas para sua busca.`}>
+                {suggestions.length > 0 ? <View style={styles.chartCard}>
+                    <Text style={styles.chartTitle}>Comparativo tecnico</Text>
+                    <Text style={styles.chartLegend}>Potencia e velocidade maxima das versoes encontradas</Text>
+                    {suggestions.slice(0, 6).map((item) => <View key={item.id} style={styles.chartRow}>
+                        <Text style={styles.chartLabel} numberOfLines={1}>{carLabel(item)}</Text>
+                        <View style={styles.chartBars}>
+                            <View style={[styles.chartBar, styles.powerBar, { width: `${Math.min(100, ((item.enginePowerBhp ?? item.enginePowerKw ?? 0) / 600) * 100)}%` }]} />
+                            <View style={[styles.chartBar, styles.speedBar, { width: `${Math.min(100, ((item.topSpeedKph ?? 0) / 300) * 100)}%` }]} />
+                        </View>
+                    </View>)}
+                    <View style={styles.chartKey}><Text style={styles.keyPower}>Potencia</Text><Text style={styles.keySpeed}>Velocidade</Text></View>
+                </View> : null}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
                     {suggestions.map((item) => (
                         <Pressable
@@ -158,7 +176,7 @@ export default function DashboardScreen() {
                 </ScrollView>
             </Section>
 
-            <Section title="Recomendacoes semelhantes" subtitle="Retornadas pela rota de recommendations do mesmo backend.">
+            <Section title="Modelos semelhantes" subtitle="Outros modelos que podem combinar com sua escolha.">
                 <FlatRecommendationList items={similarCars} onPress={(item) => setSelectedCar(item)} />
             </Section>
         </Screen>
@@ -188,19 +206,37 @@ function FlatRecommendationList({ items, onPress }: { items: CarRecommendation[]
 }
 
 const styles = StyleSheet.create({
+    chartCard: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D7E1E8',
+        padding: 16,
+        gap: 10,
+    },
+    chartTitle: { color: '#102A43', fontSize: 16, fontWeight: '800' },
+    chartLegend: { color: '#526B82', fontSize: 12 },
+    chartRow: { gap: 5 },
+    chartLabel: { color: '#315B7D', fontSize: 12 },
+    chartBars: { gap: 3 },
+    chartBar: { height: 7 },
+    powerBar: { backgroundColor: '#1261A0' },
+    speedBar: { backgroundColor: '#E59F2F' },
+    chartKey: { flexDirection: 'row', gap: 18 },
+    keyPower: { color: '#1261A0', fontSize: 11, fontWeight: '700' },
+    keySpeed: { color: '#B56C00', fontSize: 11, fontWeight: '700' },
     searchBox: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         padding: 14,
         borderRadius: 18,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#B8C9D8',
     },
     input: {
         flex: 1,
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 15,
     },
     actionRow: {
@@ -209,7 +245,7 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
     },
     error: {
-        color: '#F3B1B1',
+        color: '#B42318',
         fontSize: 13,
     },
     loadingBox: {
@@ -219,19 +255,19 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     loadingText: {
-        color: '#9FB3C8',
+        color: '#526B82',
         fontSize: 13,
     },
     summaryCard: {
         borderRadius: 20,
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         padding: 16,
         gap: 14,
     },
     summaryText: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 14,
         lineHeight: 20,
     },
@@ -242,19 +278,19 @@ const styles = StyleSheet.create({
     metric: {
         flex: 1,
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#F2F6F9',
         padding: 14,
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         gap: 4,
     },
     metricValue: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 18,
         fontWeight: '800',
     },
     metricLabel: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 12,
     },
     barBlock: {
@@ -265,7 +301,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     barLabel: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 13,
         fontWeight: '700',
     },
@@ -277,7 +313,7 @@ const styles = StyleSheet.create({
     barTrack: {
         height: 12,
         borderRadius: 999,
-        backgroundColor: '#13253C',
+        backgroundColor: '#E8F0F7',
         overflow: 'hidden',
     },
     barFill: {
@@ -291,7 +327,7 @@ const styles = StyleSheet.create({
     compCard: {
         width: 160,
         borderRadius: 18,
-        backgroundColor: '#13253C',
+        backgroundColor: '#E8F0F7',
         borderWidth: 1,
         borderColor: '#22354A',
         padding: 14,
@@ -301,12 +337,12 @@ const styles = StyleSheet.create({
         borderColor: '#2F74FF',
     },
     compTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 15,
         fontWeight: '800',
     },
     compMeta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 12,
     },
     compScore: {
@@ -322,19 +358,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        backgroundColor: '#13253C',
+        backgroundColor: '#E8F0F7',
         borderRadius: 18,
         borderWidth: 1,
         borderColor: '#22354A',
         padding: 14,
     },
     recTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 15,
         fontWeight: '800',
     },
     recMeta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 12,
         marginTop: 2,
     },
@@ -352,7 +388,19 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     emptyText: {
-        color: '#9FB3C8',
+        color: '#526B82',
         fontSize: 13,
+    },
+    emptyState: {
+        padding: 18,
+        backgroundColor: '#E8F0F7',
+        borderWidth: 1,
+        borderColor: '#B8C9D8',
+        gap: 6,
+    },
+    emptyTitle: {
+        color: '#102A43',
+        fontSize: 16,
+        fontWeight: '800',
     },
 });

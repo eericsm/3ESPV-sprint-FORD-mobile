@@ -7,8 +7,7 @@ import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { Section } from '../../src/components/Section';
 import { Tag } from '../../src/components/Tag';
-import { carLabel, carSubtitle } from '../../src/data/ford';
-import { Car, listCars } from '../../src/lib/ford-api';
+import { FordModel, formatProfile, recommendModels } from '../../src/data/ford';
 
 const quickPrompts = [
     'Uso o carro com a familia e viajo muito na estrada',
@@ -16,39 +15,19 @@ const quickPrompts = [
     'Procuro aventura, off-road e performance',
 ];
 
-function inferModelTerm(text: string): string {
-    const normalized = text.toLowerCase();
-    if (/(famil|viag|estrad)/i.test(normalized)) return 'Territory';
-    if (/(off[- ]?road|aventur|trilha)/i.test(normalized)) return 'Bronco Sport';
-    if (/(trabalh|cidade|econom)/i.test(normalized)) return 'Ranger';
-    if (/(performance|esport|potenc|veloc)/i.test(normalized)) return 'Mustang';
-    if (/(eletric|hibrid)/i.test(normalized)) return 'Mach-E';
-    return 'Ford';
-}
-
 export default function PortalScreen() {
     const router = useRouter();
     const [query, setQuery] = useState('Uso o carro com a familia e viajo muito na estrada');
-    const [items, setItems] = useState<Car[]>([]);
+    const [items, setItems] = useState<Array<FordModel & { score: number }>>([]);
+    const [profile, setProfile] = useState('sem critérios claros no texto');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const term = useMemo(() => inferModelTerm(query), [query]);
 
     async function loadRecommendations(text = query) {
-        const modelTerm = inferModelTerm(text);
         setLoading(true);
-        setError(null);
-
-        try {
-            const response = await listCars({ model: modelTerm, limit: 3 });
-            setItems(response.items);
-        } catch {
-            setError('Nao foi possivel consultar o backend da Ford.');
-            setItems([]);
-        } finally {
-            setLoading(false);
-        }
+        const result = recommendModels(text);
+        setItems(result.ranked);
+        setProfile(formatProfile(result.tags, result.budget));
+        setLoading(false);
     }
 
     useEffect(() => {
@@ -58,7 +37,7 @@ export default function PortalScreen() {
 
     return (
         <Screen>
-            <Section title="Portal SEIA" subtitle="Digite sua rotina e veja uma busca inicial no mesmo backend Ford usado pelo site.">
+            <Section title="Qual é o seu próximo Ford?" subtitle="Descreva como você usa o carro e descubra quais modelos combinam com você.">
                 <View style={styles.searchBox}>
                     <Ionicons name="search" size={18} color="#9FB3C8" />
                     <TextInput
@@ -75,36 +54,42 @@ export default function PortalScreen() {
                         <Tag key={prompt} label={prompt} onPress={() => setQuery(prompt)} />
                     ))}
                 </View>
-                <PrimaryButton label="Consultar backend" onPress={() => void loadRecommendations(query)} />
-                <Text style={styles.helper}>Termo usado na busca: {term}</Text>
-                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <PrimaryButton label="Encontrar meu Ford" onPress={() => void loadRecommendations(query)} />
+                <Text style={styles.helper}>Perfil detectado: {profile}</Text>
             </Section>
 
-            <Section title="Resultados do backend" subtitle={loading ? 'Carregando...' : `${items.length} carros retornados`}>
+            <Section title="Resultados da recomendacao" subtitle={loading ? 'Carregando...' : `${items.length} modelos ordenados por compatibilidade`}>
                 {loading ? (
                     <View style={styles.loadingBox}>
                         <ActivityIndicator color="#9FD4FF" />
                     </View>
                 ) : (
                     items.map((item) => (
-                        <Pressable key={item.id} style={styles.card} onPress={() => router.push({ pathname: '/dashboard', params: { model: carLabel(item) } })}>
+                        <Pressable key={item.id} style={styles.card} onPress={() => router.push({ pathname: '/modelos', params: { tags: recommendModels(query).tags.join(','), orcamento: String(recommendModels(query).budget ?? '') } })}>
                             <View style={styles.cardHeader}>
                                 <View>
-                                    <Text style={styles.cardTitle}>{carLabel(item)}</Text>
-                                    <Text style={styles.cardMeta}>{carSubtitle(item)}</Text>
+                                    <Text style={styles.cardTitle}>{item.name}</Text>
+                                    <Text style={styles.cardMeta}>{item.segment}</Text>
                                 </View>
                                 <View style={styles.scorePill}>
-                                    <Text style={styles.scoreText}>{item.enginePowerBhp ?? item.enginePowerKw ?? '—'}</Text>
+                                    <Text style={styles.scoreText}>{item.score}%</Text>
                                 </View>
                             </View>
-                            <Text style={styles.cardFacts}>{[item.engineFuelType, item.gearboxType, item.drivetrain].filter(Boolean).join(' · ') || 'Dados do backend'}</Text>
-                            <Text style={styles.cardPrice}>ID {item.id}</Text>
+                            <Text style={styles.cardReason}>{reasonFor(item, query)}</Text>
+                            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${item.score}%` }]} /></View>
+                            <Text style={styles.cardFacts}>{item.facts.join(' · ')}</Text>
+                            <Text style={styles.cardPrice}>a partir de {item.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</Text>
                         </Pressable>
                     ))
                 )}
             </Section>
         </Screen>
     );
+}
+
+function reasonFor(model: FordModel, text: string): string {
+    const tags = recommendModels(text).tags.filter((tag) => model.tags.includes(tag));
+    return tags.length ? `Combina com seu perfil: ${tags.join(', ')}` : 'Uma alternativa para explorar na linha Ford.';
 }
 
 const styles = StyleSheet.create({
@@ -114,14 +99,14 @@ const styles = StyleSheet.create({
         gap: 10,
         padding: 14,
         borderRadius: 18,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#B8C9D8',
     },
     input: {
         flex: 1,
         minHeight: 80,
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 15,
         lineHeight: 22,
     },
@@ -131,11 +116,11 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     helper: {
-        color: '#9FB3C8',
+        color: '#526B82',
         fontSize: 12,
     },
     error: {
-        color: '#F3B1B1',
+        color: '#B42318',
         fontSize: 13,
     },
     loadingBox: {
@@ -144,10 +129,10 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     card: {
-        backgroundColor: '#0D1A2C',
-        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         padding: 16,
         gap: 10,
         marginBottom: 10,
@@ -158,12 +143,12 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     cardTitle: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 17,
         fontWeight: '800',
     },
     cardMeta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 13,
         marginTop: 2,
     },
@@ -171,7 +156,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#2F74FF',
+        backgroundColor: '#1261A0',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -181,12 +166,26 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     cardFacts: {
-        color: '#D3DFEA',
+        color: '#315B7D',
         fontSize: 13,
     },
     cardPrice: {
-        color: '#9FD4FF',
+        color: '#1261A0',
         fontSize: 15,
         fontWeight: '700',
+    },
+    cardReason: {
+        color: '#315B7D',
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    progressTrack: {
+        height: 8,
+        backgroundColor: '#D7E1E8',
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#2E7DD1',
     },
 });

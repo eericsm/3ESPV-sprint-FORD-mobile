@@ -7,6 +7,9 @@ import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { Section } from '../../src/components/Section';
 import { StatCard } from '../../src/components/StatCard';
+import { Tag } from '../../src/components/Tag';
+import { calculateScore, fordModels } from '../../src/data/ford';
+import { supabase } from '../../src/lib/supabase';
 
 const profileKey = 'seia-profile';
 
@@ -18,6 +21,8 @@ const defaultProfile = {
     usage: 'Cidade',
     passengers: '3 ou 4',
     budget: '',
+    priorities: [] as string[],
+    consent: false,
 };
 
 export default function PerfilScreen() {
@@ -25,6 +30,7 @@ export default function PerfilScreen() {
     const [profile, setProfile] = useState(defaultProfile);
     const [favoritesCount, setFavoritesCount] = useState(0);
     const [appointmentsCount, setAppointmentsCount] = useState(0);
+    const recommended = useMemo(() => fordModels.map((model) => ({ model, score: calculateScore(model.tags, profile.usage.toLowerCase().split(/[, ]+/), model.price, Number(profile.budget) || null) })).sort((a, b) => b.score - a.score).slice(0, 3), [profile]);
 
     useFocusEffect(
         useCallback(() => {
@@ -91,7 +97,14 @@ export default function PerfilScreen() {
                 <TextInput style={styles.input} value={profile.name} onChangeText={(name) => setProfile((current) => ({ ...current, name }))} placeholder="Nome" placeholderTextColor="#6F8398" />
                 <TextInput style={styles.input} value={profile.phone} onChangeText={(phone) => setProfile((current) => ({ ...current, phone }))} placeholder="Telefone" placeholderTextColor="#6F8398" />
                 <TextInput style={styles.input} value={profile.budget} onChangeText={(budget) => setProfile((current) => ({ ...current, budget }))} placeholder="Orcamento" placeholderTextColor="#6F8398" />
+                <Text style={styles.fieldLabel}>Prioridades</Text>
+                <View style={styles.choiceRow}>{['Economia', 'Espaco', 'Performance', 'Tecnologia'].map((item) => <Tag key={item} label={item} active={profile.priorities.includes(item)} onPress={() => setProfile((current) => ({ ...current, priorities: current.priorities.includes(item) ? current.priorities.filter((priority) => priority !== item) : [...current.priorities, item] }))} />)}</View>
+                <Tag label="Aceito receber recomendações personalizadas" active={profile.consent} onPress={() => setProfile((current) => ({ ...current, consent: !current.consent }))} />
                 <PrimaryButton label="Salvar perfil" onPress={saveProfile} />
+            </Section>
+
+            <Section title="Sua recomendacao" subtitle="Uma prévia baseada nas preferências salvas.">
+                {recommended.map(({ model, score }) => <View key={model.id} style={styles.recommendation}><Text style={styles.recommendationName}>{model.name}</Text><Text style={styles.recommendationScore}>{score}% compativel</Text></View>)}
             </Section>
 
             <Section title="Atalhos" subtitle="Leve o usuario para as areas que mais importam.">
@@ -99,8 +112,10 @@ export default function PerfilScreen() {
                     <PrimaryButton label="Modelos" onPress={() => router.push('/modelos')} variant="secondary" />
                     <PrimaryButton label="Agenda" onPress={() => router.push('/agendamentos')} variant="secondary" />
                     <PrimaryButton label="Lojas" onPress={() => router.push('/concessionarias')} variant="secondary" />
+                    <PrimaryButton label="Suporte" onPress={() => router.push('/fale-conosco')} variant="secondary" />
                 </View>
             </Section>
+            <PrimaryButton label="Sair da conta" onPress={async () => { await supabase?.auth.signOut(); router.replace('/'); }} variant="ghost" />
         </Screen>
     );
 }
@@ -110,10 +125,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 14,
         alignItems: 'center',
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#D7E1E8',
         padding: 16,
     },
     avatar: {
@@ -130,12 +145,12 @@ const styles = StyleSheet.create({
         fontWeight: '900',
     },
     name: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 18,
         fontWeight: '800',
     },
     meta: {
-        color: '#91A7BB',
+        color: '#526B82',
         fontSize: 13,
         marginTop: 2,
     },
@@ -153,13 +168,13 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     choice: {
-        color: '#C9D6E2',
+        color: '#315B7D',
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 999,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
+        borderColor: '#B8C9D8',
         fontSize: 12,
         fontWeight: '700',
         overflow: 'hidden',
@@ -171,10 +186,10 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: 16,
-        backgroundColor: '#13253C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        color: '#F5F8FC',
+        borderColor: '#B8C9D8',
+        color: '#102A43',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
@@ -183,4 +198,9 @@ const styles = StyleSheet.create({
         gap: 12,
         flexWrap: 'wrap',
     },
+    fieldLabel: { color: '#315B7D', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+    choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    recommendation: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#D7E1E8' },
+    recommendationName: { color: '#102A43', fontSize: 15, fontWeight: '800' },
+    recommendationScore: { color: '#1261A0', fontSize: 13, fontWeight: '800' },
 });

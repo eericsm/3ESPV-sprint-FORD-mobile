@@ -6,13 +6,12 @@ export default function TabsLayout() {
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: '#9FD4FF',
-                tabBarInactiveTintColor: '#7E92A6',
+                tabBarActiveTintColor: '#1261A0',
+                tabBarInactiveTintColor: '#6B8194',
                 tabBarStyle: {
-                    backgroundColor: '#091421',
-                    borderTopColor: '#1B2C3E',
+                    backgroundColor: '#FFFFFF',
+                    borderTopColor: '#D7E1E8',
                 },
-                sceneContainerStyle: { backgroundColor: '#07111f' },
             }}
         >
             <Tabs.Screen name="portal" options={{ title: 'Portal', tabBarIcon: ({ color, size }) => <Ionicons name="sparkles" color={color} size={size} /> }} />

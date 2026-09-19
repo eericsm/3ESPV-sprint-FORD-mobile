@@ -21,24 +21,24 @@ export function PrimaryButton({ label, onPress, variant = 'primary' }: Props) {
 
 const styles = StyleSheet.create({
     base: {
-        borderRadius: 18,
+        borderRadius: 4,
         paddingHorizontal: 18,
         paddingVertical: 14,
         alignItems: 'center',
         justifyContent: 'center',
     },
     primary: {
-        backgroundColor: '#2F74FF',
+        backgroundColor: '#1261A0',
     },
     secondary: {
-        backgroundColor: '#13253C',
+        backgroundColor: '#E8F0F7',
         borderWidth: 1,
-        borderColor: '#2B3F56',
+        borderColor: '#B8C9D8',
     },
     ghost: {
         backgroundColor: 'transparent',
         borderWidth: 1,
-        borderColor: '#2B3F56',
+        borderColor: '#B8C9D8',
     },
     pressed: {
         opacity: 0.85,
@@ -50,9 +50,9 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     labelSecondary: {
-        color: '#E6EEF8',
+        color: '#123B5D',
     },
     labelGhost: {
-        color: '#AFC1D4',
+        color: '#315B7D',
     },
 });

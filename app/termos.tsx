@@ -23,8 +23,8 @@ export default function TermsScreen() {
                     <ScrollView style={styles.scroll} contentContainerStyle={{ gap: 12 }}>
                         <Text style={styles.body}>1. O usuario concorda em usar a plataforma para consultar modelos, concessionarias e servicos de agendamento.</Text>
                         <Text style={styles.body}>2. As informacoes de recomendacao sao ilustrativas e podem ser atualizadas em novas versoes do app.</Text>
-                        <Text style={styles.body}>3. Favoritos, perfil e agendamentos ficam salvos localmente neste dispositivo ate a sincronizacao futura com backend real.</Text>
-                        <Text style={styles.body}>4. Quando houver integracao final com autenticacao e backend, este fluxo pode ser conectado a uma politica formal.</Text>
+                        <Text style={styles.body}>3. Você pode salvar favoritos, preferências e agendamentos para facilitar seu próximo acesso.</Text>
+                        <Text style={styles.body}>4. As informações exibidas são destinadas a ajudar na escolha do modelo e no agendamento de uma visita.</Text>
                     </ScrollView>
                 </View>
                 <Pressable style={styles.checkRow} onPress={() => setAccepted((current) => !current)}>
@@ -42,7 +42,7 @@ export default function TermsScreen() {
 const styles = StyleSheet.create({
     card: {
         borderRadius: 20,
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#22354A',
         padding: 16,
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
         maxHeight: 300,
     },
     body: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 14,
         lineHeight: 21,
     },
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#2B3F56',
-        backgroundColor: '#13253C',
+        backgroundColor: '#F2F6F9',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
         fontWeight: '900',
     },
     checkText: {
-        color: '#DCE8F3',
+        color: '#315B7D',
         fontSize: 14,
         fontWeight: '600',
     },

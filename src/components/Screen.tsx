@@ -27,12 +27,12 @@ export function Screen({ children, scroll = true }: Props) {
 const styles = StyleSheet.create({
     safe: {
         flex: 1,
-        backgroundColor: '#07111f',
+        backgroundColor: '#F4F7FA',
     },
     scroll: {
         flexGrow: 1,
-        padding: 16,
-        gap: 16,
+        padding: 18,
+        gap: 20,
     },
     body: {
         flex: 1,

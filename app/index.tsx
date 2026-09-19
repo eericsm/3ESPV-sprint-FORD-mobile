@@ -1,11 +1,10 @@
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { Screen } from '../src/components/Screen';
 import { Section } from '../src/components/Section';
-import { StatCard } from '../src/components/StatCard';
 
 export default function LandingScreen() {
     const router = useRouter();
@@ -15,50 +14,43 @@ export default function LandingScreen() {
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
                 <View style={styles.hero}>
                     <View style={styles.heroGlow} />
+                    <Image source={require('../assets/models/hero-truck.png')} style={styles.heroImage} resizeMode="cover" />
                     <View style={styles.brandRow}>
                         <View style={styles.brandMark}>
                             <Ionicons name="car-sport" size={22} color="#07111f" />
                         </View>
-                        <Text style={styles.brand}>SEIA Mobile</Text>
+                        <Text style={styles.brand}>Ford · Squad SEIA</Text>
                     </View>
-                    <Text style={styles.title}>Inteligencia automotiva em um app nativo.</Text>
+                    <Text style={styles.eyebrow}>RECOMENDAÇÃO DE VEÍCULOS COM IA</Text>
+                    <Text style={styles.title}>Dados precisos, carro perfeito.</Text>
                     <Text style={styles.subtitle}>
-                        Explore modelos Ford, gere recomendacoes, agende atendimentos e leve a plataforma para Android sem o peso de um wrapper web.
+                        Descreva como você usa o carro. O SEIA compara seu perfil com os modelos Ford e mostra quais combinam com você, e por quê.
                     </Text>
                     <View style={styles.heroActions}>
                         <PrimaryButton label="Entrar" onPress={() => router.push('/login')} />
                         <PrimaryButton label="Criar conta" onPress={() => router.push('/cadastro')} variant="secondary" />
                     </View>
-                    <Link href="/portal" asChild>
-                        <Pressable style={styles.textLink}>
-                            <Text style={styles.textLinkLabel}>Entrar direto no app</Text>
-                        </Pressable>
-                    </Link>
                 </View>
 
-                <View style={styles.statsRow}>
-                    <StatCard label="Modelos prontos para comparar" value="13" />
-                    <StatCard label="Concessionarias em rede" value="5" tone="teal" />
-                    <StatCard label="Fluxos principais" value="6" tone="gold" />
-                </View>
-
-                <Section title="O que ja vem pronto" subtitle="Base funcional para evoluir para EAS, auth real e integracoes nativas.">
+                <Section title="Como o SEIA ajuda" subtitle="Do seu jeito de usar o carro até o próximo test-drive.">
                     <View style={styles.featureList}>
                         {[
-                            'Tela inicial e autenticacao',
-                            'Portal com recomendacoes por texto',
-                            'Catalogo de modelos com favoritos',
-                            'Dashboard de comparacao',
-                            'Concessionarias com geolocalizacao',
-                            'Agendamentos e perfil com persistencia local',
-                        ].map((item) => (
-                            <View key={item} style={styles.featureItem}>
-                                <Ionicons name="checkmark-circle" size={18} color="#51D0B1" />
-                                <Text style={styles.featureText}>{item}</Text>
+                            ['01', 'Descreva seu uso', 'Conte sua rotina, passageiros, estrada e orçamento.'],
+                            ['02', 'Receba a recomendação', 'Veja os modelos que mais combinam com seu perfil.'],
+                            ['03', 'Compare e agende', 'Consulte a ficha técnica e marque seu test-drive.'],
+                        ].map(([number, title, description]) => (
+                            <View key={number} style={styles.featureItem}>
+                                <Text style={styles.featureNumber}>{number}</Text>
+                                <View style={styles.featureCopy}>
+                                    <Text style={styles.featureTitle}>{title}</Text>
+                                    <Text style={styles.featureText}>{description}</Text>
+                                </View>
                             </View>
                         ))}
                     </View>
                 </Section>
+
+                <Section title="Uma plataforma para decidir" subtitle="Recomendação, ficha técnica, comparação e test-drive em um só lugar." />
             </ScrollView>
         </Screen>
     );
@@ -68,13 +60,13 @@ const styles = StyleSheet.create({
     scroll: {
         flexGrow: 1,
         padding: 16,
-        gap: 18,
+        gap: 20,
     },
     hero: {
-        backgroundColor: '#0D1A2C',
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#22354A',
-        borderRadius: 28,
+        borderColor: '#D7E1E8',
+        borderRadius: 4,
         padding: 20,
         gap: 14,
         overflow: 'hidden',
@@ -86,7 +78,12 @@ const styles = StyleSheet.create({
         width: 150,
         height: 150,
         borderRadius: 999,
-        backgroundColor: 'rgba(47, 116, 255, 0.24)',
+        backgroundColor: '#E8F0F7',
+    },
+    heroImage: {
+        width: '100%',
+        height: 180,
+        marginBottom: 4,
     },
     brandRow: {
         flexDirection: 'row',
@@ -97,41 +94,34 @@ const styles = StyleSheet.create({
         width: 34,
         height: 34,
         borderRadius: 12,
-        backgroundColor: '#9FD4FF',
+        backgroundColor: '#1261A0',
         alignItems: 'center',
         justifyContent: 'center',
     },
     brand: {
-        color: '#DCE8F3',
+        color: '#123B5D',
         fontSize: 15,
         fontWeight: '700',
         letterSpacing: 0.8,
     },
+    eyebrow: {
+        color: '#2E7DD1',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 0.8,
+    },
     title: {
-        color: '#F5F8FC',
+        color: '#102A43',
         fontSize: 32,
         lineHeight: 38,
         fontWeight: '900',
     },
     subtitle: {
-        color: '#B5C6D6',
+        color: '#526B82',
         fontSize: 15,
         lineHeight: 22,
     },
     heroActions: {
-        flexDirection: 'row',
-        gap: 12,
-        flexWrap: 'wrap',
-    },
-    textLink: {
-        alignSelf: 'flex-start',
-    },
-    textLinkLabel: {
-        color: '#9FD4FF',
-        fontSize: 13,
-        fontWeight: '700',
-    },
-    statsRow: {
         flexDirection: 'row',
         gap: 12,
         flexWrap: 'wrap',
@@ -145,7 +135,23 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     featureText: {
-        color: '#DCE8F3',
+        color: '#526B82',
         fontSize: 14,
+        lineHeight: 19,
+    },
+    featureNumber: {
+        color: '#2E7DD1',
+        fontSize: 13,
+        fontWeight: '800',
+        width: 28,
+    },
+    featureCopy: {
+        flex: 1,
+        gap: 3,
+    },
+    featureTitle: {
+        color: '#102A43',
+        fontSize: 16,
+        fontWeight: '800',
     },
 });
