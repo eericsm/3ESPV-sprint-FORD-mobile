@@ -1,8 +1,10 @@
 ## SEIA Mobile
 
-Versão mobile do produto SEIA + Ford. O aplicativo leva para o Android os fluxos de recomendação, catálogo, comparação técnica, concessionárias e test-drive do site Angular.
+Versão mobile do produto SEIA + Ford. O aplicativo leva para o Android os fluxos de recomendação, catálogo e comparação técnica do site Angular.
 
 O aplicativo foi desenvolvido com React Native e Expo Router. Ele é uma implementação mobile nativa, não um WebView. A linguagem do produto, as regras de pontuação, a API da Ford e o projeto Supabase são compartilhados com o site sempre que possível.
+
+Este projeto pode ser lido e executado de forma independente: não é necessário conhecer o site Angular antes para entender ou rodar o app.
 
 ## Funcionalidades
 
@@ -11,10 +13,8 @@ O aplicativo foi desenvolvido com React Native e Expo Router. Ele é uma impleme
 - Portal de recomendação baseado em rotina, prioridades e orçamento
 - Catálogo de modelos Ford com busca, filtros, ordenação, compatibilidade e favoritos
 - Fotos dos veículos aproveitadas dos assets do site
-- Dashboard técnico com dados da API Ford, métricas, gráficos e modelos semelhantes
-- Comparação lado a lado de até três veículos da API Ford
-- Busca de concessionárias com filtros de serviço, localização, marcadores no mapa e rotas
-- Agendamento guiado de test-drive, revisão e avaliação
+- Dashboard técnico com dados da API Ford e comparação com os concorrentes do mesmo segmento
+- Comparação lado a lado de até três modelos do catálogo
 - Preferências do perfil e prévia de recomendações
 - Chat de suporte SEIA, atalhos e contato telefônico
 
@@ -26,8 +26,7 @@ O aplicativo foi desenvolvido com React Native e Expo Router. Ele é uma impleme
 - Expo Router
 - TypeScript
 - Supabase Auth
-- AsyncStorage para favoritos, dados do perfil e agendamentos locais
-- `react-native-maps` para localização das concessionárias
+- Supabase (`profiles`, `user_favorites`, `user_profile_history`, `vehicle_events`) para perfil, favoritos e analytics
 
 ## Requisitos
 
@@ -54,13 +53,16 @@ Crie o arquivo `.env` na raiz do projeto, ao lado do `package.json`:
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+EXPO_PUBLIC_FORD_API_URL=https://api-ford-linux-dkh6bkatgzbndddg.southafricanorth-01.azurewebsites.net
 ```
 
-Obtenha esses valores em **Supabase Dashboard -> Project Settings -> API**. Use a chave pública publishable/anon. Nunca use a chave `service_role`.
+Obtenha os valores do Supabase em **Supabase Dashboard -> Project Settings -> API**. Use a chave pública publishable/anon. Nunca use a chave `service_role`.
+
+Para usar o mesmo backend do site, use os mesmos valores de Supabase e de API da Ford configurados lá.
 
 O arquivo `.env` é ignorado pelo Git e não deve ser commitado.
 
-O cliente da API Ford está em [src/lib/ford-api.ts](src/lib/ford-api.ts) e utiliza a mesma API do site Angular para carros, detalhes e recomendações.
+O cliente da API Ford está em [src/lib/ford-api.ts](src/lib/ford-api.ts) e utiliza a mesma API do site Angular para carros, detalhes e recomendações. O cliente Supabase está em [src/lib/supabase.ts](src/lib/supabase.ts), e a sincronização de perfil/favoritos/eventos está em [src/lib/profile-service.ts](src/lib/profile-service.ts).
 
 ## Executar com Expo Go
 
@@ -84,13 +86,11 @@ O script `npm run android` é destinado a um emulador ou dispositivo Android com
 2. Crie uma conta ou entre usando o projeto Supabase utilizado pelo site.
 3. Descreva uma rotina no portal e confira as notas de compatibilidade.
 4. Teste os filtros, a ordenação, os favoritos e a comparação de veículos.
-5. Abra uma análise técnica e verifique as métricas, o gráfico e os modelos semelhantes.
-6. Abra Concessionárias, permita o acesso à localização, confira os marcadores e inicie um agendamento.
-7. Crie e remova um agendamento.
-8. Salve as preferências do perfil, confira as recomendações e teste o logout.
-9. Abra o suporte e teste as respostas da FAQ, os atalhos e o contato telefônico.
+5. Abra uma análise técnica e verifique as métricas e a comparação com os concorrentes do segmento.
+6. Salve as preferências do perfil, confira as recomendações e teste o logout.
+7. Abra o suporte e teste as respostas da FAQ, os atalhos e o contato telefônico.
 
-## APK Android
+## Gerar o APK Android
 
 ```bash
 npm install -g eas-cli
@@ -99,7 +99,9 @@ eas build:configure
 eas build --platform android --profile preview
 ```
 
-Teste o mapa nativo e os demais módulos nativos também em um APK/development build, além do Expo Go.
+`eas login` é interativo — precisa ser feito manualmente uma vez por máquina. O perfil `preview` gera um APK instalável direto no aparelho, sem precisar de conta na Play Store. Para uma versão pronta para a Play Store, use o profile `production` (gera `.aab`) e depois `eas submit` se for publicar por lá.
+
+Teste os módulos nativos também em um APK/development build, além do Expo Go.
 
 ## Estrutura do projeto
 
@@ -107,106 +109,22 @@ Teste o mapa nativo e os demais módulos nativos também em um APK/development b
 - `app/(tabs)/` áreas autenticadas do produto
 - `assets/models/` assets visuais da Ford e do SEIA
 - `src/components/` componentes de UI compartilhados
-- `src/data/ford.ts` metadados dos modelos, regras de pontuação, concessionárias e FAQ
+- `src/data/ford.ts` catálogo de modelos, regras de pontuação e FAQ
 - `src/lib/ford-api.ts` cliente da API Ford
 - `src/lib/supabase.ts` cliente Supabase e persistência da sessão
+- `src/lib/profile-service.ts` sincronização de perfil, favoritos e eventos com o Supabase
+- `src/lib/scoring.ts` ranking de recomendação do perfil
+- `src/lib/catalog.ts` tabela comparativa do catálogo local
+- `src/lib/comparison.ts` comparação de segmento/concorrentes usada no dashboard
 
 ## Relação com o site Angular
 
-O projeto Angular é a referência do produto. O aplicativo adapta o layout desktop para telas sensíveis ao toque, preservando a mesma marca, linguagem, conceitos de recomendação, regras de pontuação, catálogo, fluxo de comparação, jornada de concessionárias, autenticação e hierarquia do produto.
+O projeto Angular é a referência do produto. O aplicativo adapta o layout desktop para telas sensíveis ao toque, preservando a mesma marca, linguagem, conceitos de recomendação, regras de pontuação, catálogo, fluxo de comparação, autenticação e hierarquia do produto. O app mobile não é um WebView — é uma implementação nativa separada que usa os mesmos serviços de backend (API da Ford e Supabase).
 
 Quando um comportamento ou texto mudar no site, atualize a tela mobile correspondente para que os dois aplicativos continuem parecendo o mesmo produto.
 
-SEIA Mobile is a standalone Expo + EAS Android app for exploring Ford models, getting recommendations, managing appointments, and saving profile data on a phone.
+## Notas
 
-This folder is meant to be readable on its own. You do not need to know the Angular web app first to understand or run it.
-
-## How it relates to the main product
-
-This mobile app belongs to the same product family as the main SEIA website. The two apps share the same Ford backend API for car data and recommendations, and they can also point to the same Supabase project for authentication and session storage.
-
-The difference is the interface:
-
-- The website is a browser-based Angular app.
-- This folder is a native React Native app built with Expo Router.
-
-The mobile app is not a WebView wrapper. It is a separate native implementation that uses the same backend services.
-
-## What you get here
-
-- Landing screen
-- Login and signup screens
-- Portal with recommendation lookup
-- Ford model catalog
-- Detailed dashboard for car data
-- Concessionary search and location support
-- Appointments with local persistence
-- Profile screen with local persistence
-- Terms and FAQ/support screens
-
-## Requirements
-
-- Node.js 20+ recommended
-- npm
-- Android Studio or a physical Android device for local testing
-- Expo Go or a development build
-
-## Install
-
-From inside this folder:
-
-```bash
-npm install
-```
-
-If this folder has been moved into its own repository, the install command stays the same.
-
-## Environment
-
-Create a file named `.env` next to `package.json` and add your Supabase values:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=your-supabase-url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
-Those variables are read by [src/lib/supabase.ts](src/lib/supabase.ts).
-
-If you want the mobile app to use the same Supabase project as the website, paste the same values here.
-
-## Run
-
-Start the Expo app:
-
-```bash
-npm run start
-```
-
-Run on Android:
-
-```bash
-npm run android
-```
-
-## Data sources
-
-The mobile app uses the same Ford API backend as the website for car data and recommendations. The shared client lives in [src/lib/ford-api.ts](src/lib/ford-api.ts).
-
-The app currently stores the following locally on the device:
-
-- Favorites
-- Profile data
-- Appointments
-
-## Project structure
-
-- `app/` Expo Router screens
-- `src/components/` shared UI pieces
-- `src/data/` helper functions and formatting logic
-- `src/lib/` API and Supabase clients
-
-## Notes
-
-- This project can be moved out and uploaded as its own repository later.
-- The UI is designed for mobile, not a direct copy of the website layout.
-- If you add new backend keys or API settings later, keep them in `.env` and in your EAS environment settings.
+- Este projeto pode ser movido para um repositório próprio mais tarde.
+- A interface é pensada para mobile, não é uma cópia direta do layout do site.
+- Ao adicionar novas chaves de backend ou configurações de API, mantenha-as no `.env` e também nas variáveis de ambiente do EAS.

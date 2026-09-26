@@ -2,6 +2,7 @@ import type { Car } from '../lib/ford-api';
 
 export type ModelCategory = 'suv' | 'picape' | 'esportivo' | 'comercial';
 export type FuelType = 'combustion' | 'hybrid' | 'electric';
+export type EngineType = 'combustao' | 'diesel' | 'hibrido' | 'eletrico';
 
 export interface FordModel {
     id: string;
@@ -13,32 +14,16 @@ export interface FordModel {
     rating: number;
     tags: string[];
     facts: string[];
+    /** Tipo de motor usado no ranking do perfil (mesma info de `fuel`, granularidade do combustivel real). */
+    motor: EngineType;
+    /** Sinalizadores usados só para pontuar a prévia do perfil (mesmos do catálogo do site). */
+    espacoBom: boolean;
+    confortoBom: boolean;
+    consumoBom: boolean;
+    potenciaBoa: boolean;
 }
 
-export interface Dealership {
-    id: string;
-    name: string;
-    address: string;
-    neighborhood: string;
-    latitude: number;
-    longitude: number;
-    services: string[];
-    hours: {
-        weekday: string;
-        saturday: string | null;
-        sunday: string | null;
-    };
-}
-
-export interface Appointment {
-    id: string;
-    type: string;
-    model: string;
-    dealership: string;
-    date: string;
-    time: string;
-    note: string;
-}
+export const GENERO_OPTIONS = ['Feminino', 'Masculino', 'Nao binario', 'Prefiro nao informar'];
 
 export const fordModels: FordModel[] = [
     {
@@ -51,6 +36,11 @@ export const fordModels: FordModel[] = [
         rating: 94,
         tags: ['familia', 'viagem', 'estrada', 'cidade'],
         facts: ['1.5 turbo', '177 cv', '5 lugares'],
+        motor: 'combustao',
+        espacoBom: true,
+        confortoBom: true,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'bronco-sport',
@@ -62,6 +52,11 @@ export const fordModels: FordModel[] = [
         rating: 81,
         tags: ['offroad', 'aventura', 'familia'],
         facts: ['1.5 EcoBoost', '182 cv', '4x4'],
+        motor: 'combustao',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'explorer',
@@ -73,6 +68,11 @@ export const fordModels: FordModel[] = [
         rating: 78,
         tags: ['familia', 'viagem', 'estrada'],
         facts: ['2.3 EcoBoost', '300 cv', '7 lugares'],
+        motor: 'combustao',
+        espacoBom: true,
+        confortoBom: true,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'ranger',
@@ -84,6 +84,11 @@ export const fordModels: FordModel[] = [
         rating: 92,
         tags: ['trabalho', 'offroad', 'carga'],
         facts: ['3.0 V6 turbo diesel', '250 cv', '4x4'],
+        motor: 'diesel',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'ranger-raptor',
@@ -95,6 +100,11 @@ export const fordModels: FordModel[] = [
         rating: 88,
         tags: ['performance', 'offroad', 'aventura'],
         facts: ['3.0 V6 twin-turbo', '397 cv', '4x4'],
+        motor: 'combustao',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: true,
     },
     {
         id: 'maverick-hybrid',
@@ -106,6 +116,11 @@ export const fordModels: FordModel[] = [
         rating: 86,
         tags: ['cidade', 'economia', 'trabalho'],
         facts: ['2.5 hibrido', '191 cv', '5 lugares'],
+        motor: 'hibrido',
+        espacoBom: false,
+        confortoBom: true,
+        consumoBom: true,
+        potenciaBoa: false,
     },
     {
         id: 'maverick-tremor',
@@ -117,6 +132,11 @@ export const fordModels: FordModel[] = [
         rating: 68,
         tags: ['offroad', 'aventura'],
         facts: ['2.0 EcoBoost', '250 cv', '4x4'],
+        motor: 'combustao',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'mustang-gt',
@@ -128,6 +148,11 @@ export const fordModels: FordModel[] = [
         rating: 97,
         tags: ['performance'],
         facts: ['5.0 V8', '480 cv', 'tracao traseira'],
+        motor: 'combustao',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: true,
     },
     {
         id: 'mustang-mach-e',
@@ -139,6 +164,11 @@ export const fordModels: FordModel[] = [
         rating: 91,
         tags: ['cidade', 'eletrico', 'familia'],
         facts: ['motor eletrico', '351 cv', 'autonomia alta'],
+        motor: 'eletrico',
+        espacoBom: true,
+        confortoBom: true,
+        consumoBom: true,
+        potenciaBoa: false,
     },
     {
         id: 'f-150',
@@ -150,6 +180,11 @@ export const fordModels: FordModel[] = [
         rating: 89,
         tags: ['trabalho', 'carga', 'performance'],
         facts: ['3.5 V6 EcoBoost', '400 cv', '4x4'],
+        motor: 'combustao',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: true,
     },
     {
         id: 'f-150-lightning',
@@ -161,6 +196,11 @@ export const fordModels: FordModel[] = [
         rating: 95,
         tags: ['trabalho', 'eletrico'],
         facts: ['motor eletrico duplo', '580 cv', '4x4'],
+        motor: 'eletrico',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: true,
+        potenciaBoa: true,
     },
     {
         id: 'transit-furgao',
@@ -172,6 +212,11 @@ export const fordModels: FordModel[] = [
         rating: 74,
         tags: ['trabalho', 'carga'],
         facts: ['2.2 turbo diesel', '125 cv', 'capacidade alta'],
+        motor: 'diesel',
+        espacoBom: false,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: false,
     },
     {
         id: 'transit-minibus',
@@ -183,68 +228,19 @@ export const fordModels: FordModel[] = [
         rating: 76,
         tags: ['trabalho', 'viagem'],
         facts: ['2.2 turbo diesel', '125 cv', 'ate 16 lugares'],
-    },
-];
-
-export const dealerships: Dealership[] = [
-    {
-        id: 'caoa-ceasa',
-        name: 'Ford CAOA - Ceasa - SP',
-        address: 'Av. Dr. Gastao Vidigal, 1250',
-        neighborhood: 'Vila Leopoldina',
-        latitude: -23.5217,
-        longitude: -46.7307,
-        services: ['Vendas', 'Test-drive', 'Oficina'],
-        hours: { weekday: '08:00 - 19:00', saturday: '08:00 - 13:00', sunday: null },
-    },
-    {
-        id: 'caoa-ibirapuera',
-        name: 'Ford CAOA - Ibirapuera - SP',
-        address: 'Av. Ibirapuera, 2400',
-        neighborhood: 'Moema',
-        latitude: -23.6103,
-        longitude: -46.6613,
-        services: ['Vendas', 'Test-drive', 'Pecas'],
-        hours: { weekday: '08:00 - 18:00', saturday: '08:00 - 13:00', sunday: null },
-    },
-    {
-        id: 'caoa-jabaquara',
-        name: 'Ford CAOA - Jabaquara - SP',
-        address: 'Av. Jabaquara, 2207',
-        neighborhood: 'Jabaquara / Sao Judas',
-        latitude: -23.6272,
-        longitude: -46.6407,
-        services: ['Vendas', 'Oficina', 'Pecas'],
-        hours: { weekday: '08:00 - 18:00', saturday: '08:00 - 13:00', sunday: null },
-    },
-    {
-        id: 'sonnervig',
-        name: 'Ford Sonnervig - SP',
-        address: 'Rua dos Machados, 150',
-        neighborhood: 'Vila Guilherme',
-        latitude: -23.5093,
-        longitude: -46.6058,
-        services: ['Vendas', 'Test-drive', 'Oficina', 'Pecas'],
-        hours: { weekday: '08:00 - 18:00', saturday: '08:00 - 13:00', sunday: null },
-    },
-    {
-        id: 'ford-sao-paulo',
-        name: 'Ford For Sao Paulo - SP',
-        address: 'Av. das Nacoes Unidas, 21883',
-        neighborhood: 'Zona Sul',
-        latitude: -23.652,
-        longitude: -46.71,
-        services: ['Vendas', 'Test-drive'],
-        hours: { weekday: '09:00 - 18:00', saturday: null, sunday: null },
+        motor: 'diesel',
+        espacoBom: true,
+        confortoBom: false,
+        consumoBom: false,
+        potenciaBoa: false,
     },
 ];
 
 export const faqAnswers: Array<{ key: RegExp; answer: string }> = [
-    { key: /agend/i, answer: 'Voce pode marcar, remarcar ou cancelar um atendimento na pagina de Agendamentos.' },
     { key: /model|pre[cç]o|carro|suv|picape/i, answer: 'A pagina de Modelos compara ficha tecnica, preco e compatibilidade.' },
-    { key: /concession/i, answer: 'A pagina de Concessionarias mostra a loja mais perto e rota para chegar.' },
+    { key: /concession/i, answer: 'Fale com a concessionaria mais proxima para marcar um test-drive ou avaliacao.' },
     { key: /hor[aá]ri|atend/i, answer: 'A central atende de segunda a sexta das 8h as 20h.' },
-    { key: /obrigad|valeu/i, answer: 'Por nada. Se quiser, eu posso te ajudar com agendamento ou escolha do modelo.' },
+    { key: /obrigad|valeu/i, answer: 'Por nada. Se quiser, eu posso te ajudar com a escolha do modelo.' },
 ];
 
 const tagDictionary: Record<string, string[]> = {

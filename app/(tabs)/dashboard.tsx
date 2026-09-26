@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { Section } from '../../src/components/Section';
-import { carFacts, carLabel, carSubtitle } from '../../src/data/ford';
-import { Car, CarRecommendation, getRecomendacoes, listCars } from '../../src/lib/ford-api';
+import { Tag } from '../../src/components/Tag';
+import { Comparacao, ItemComparacao, SEGMENTOS, SUGESTOES, TERMO_BUSCA_API, chaveRival, diferencaDoRival, diferencaParaMedia, modeloDaBusca, montarComparacao, rivalMaisForte } from '../../src/lib/comparison';
+import { listCars } from '../../src/lib/ford-api';
 
 function Bar({ label, value, max, tone }: { label: string; value: number; max: number; tone: string }) {
     return (
@@ -23,207 +24,155 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
     );
 }
 
-function scoreFromCar(car: Car): number {
-    const power = car.enginePowerBhp ?? car.enginePowerKw ?? 0;
-    const speed = car.topSpeedKph ?? 0;
-    return Math.max(10, Math.min(100, Math.round(power * 0.18 + speed * 0.12)));
-}
-
 export default function DashboardScreen() {
-    const router = useRouter();
     const params = useLocalSearchParams<{ model?: string }>();
     const [search, setSearch] = useState(String(params.model ?? ''));
-    const [selectedCar, setSelectedCar] = useState<Car | null>(null);
-    const [suggestions, setSuggestions] = useState<Car[]>([]);
-    const [similarCars, setSimilarCars] = useState<CarRecommendation[]>([]);
+    const [termoBuscado, setTermoBuscado] = useState('');
+    const [comparacao, setComparacao] = useState<Comparacao | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [semSegmento, setSemSegmento] = useState(false);
 
-    const selectedScore = useMemo(() => (selectedCar ? scoreFromCar(selectedCar) : 0), [selectedCar]);
+    const referencia = useMemo(() => comparacao?.itens.find((i) => i.referencia) ?? null, [comparacao]);
+    const rivais = useMemo(() => comparacao?.itens.filter((i) => !i.referencia) ?? [], [comparacao]);
+    const maisForte = useMemo(() => (rivais.length ? rivalMaisForte(rivais) : null), [rivais]);
+    const media = useMemo(() => (referencia && rivais.length ? diferencaParaMedia(referencia, rivais) : null), [referencia, rivais]);
+    const maximo = useMemo(() => {
+        const valores = [referencia, ...rivais].flatMap((i) => (i ? [i.potencia ?? 0, i.velocidade ?? 0] : []));
+        return Math.max(1, ...valores);
+    }, [referencia, rivais]);
 
-    async function loadCars(term: string) {
-        const query = term.trim();
-        if (!query) {
+    async function buscar(termo: string) {
+        const nome = termo.trim();
+        if (!nome) {
             setError('Digite o nome de um carro para buscar.');
             return;
         }
 
+        const modeloFord = modeloDaBusca(nome, SUGESTOES);
         setLoading(true);
         setError(null);
+        setComparacao(null);
+        setSemSegmento(false);
+        setTermoBuscado(nome);
+
+        if (!modeloFord || !SEGMENTOS[modeloFord]) {
+            setLoading(false);
+            setSemSegmento(true);
+            return;
+        }
 
         try {
-            const response = await listCars({ model: query, limit: 8 });
-            setSuggestions(response.items);
+            const segmento = SEGMENTOS[modeloFord];
+            const termoApi = TERMO_BUSCA_API[modeloFord] ?? modeloFord;
 
-            const match = response.items.find((item) => carLabel(item).toLowerCase().includes(query.toLowerCase())) ?? response.items[0] ?? null;
-            setSelectedCar(match);
+            const [fordResponse, ...rivaisResponses] = await Promise.all([
+                listCars({ make: 'FORD', model: termoApi, limit: 100 }),
+                ...segmento.rivais.map((rival) => listCars({ make: rival.marca, model: rival.busca, limit: 100 })),
+            ]);
 
-            if (!match) {
-                setSimilarCars([]);
-            } else {
-                try {
-                    const recommendations = await getRecomendacoes(match.id, 5);
-                    setSimilarCars(recommendations.filter((item) => item.id !== match.id));
-                } catch {
-                    setSimilarCars([]);
-                }
+            const carrosRivais = Object.fromEntries(segmento.rivais.map((rival, i) => [chaveRival(rival), rivaisResponses[i].items]));
+            const resultado = montarComparacao(modeloFord, fordResponse.items, carrosRivais);
+            setComparacao(resultado);
+            if (!resultado || (!resultado.itens.length)) {
+                setError('Não foi possível encontrar dados para esse modelo.');
             }
         } catch {
-            setError('Não foi possível carregar os dados. Tente novamente.');
-            setSuggestions([]);
-            setSimilarCars([]);
-            setSelectedCar(null);
+            setError('Não foi possível se conectar à API da Ford. Tente novamente.');
         } finally {
             setLoading(false);
         }
     }
 
     useEffect(() => {
-        if (params.model) {
-            void loadCars(String(params.model));
-            return;
-        }
-
-        void loadCars(search || 'Ranger');
+        if (params.model) void buscar(String(params.model));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [params.model]);
 
-    useEffect(() => {
-        if (!selectedCar && suggestions.length > 0) {
-            setSelectedCar(suggestions[0]);
-        }
-    }, [selectedCar, suggestions]);
-
     return (
         <Screen>
-            <Section title="Ficha técnica" subtitle="Consulte potência, velocidade máxima, câmbio e versões de cada modelo Ford.">
+            <Section title="Ficha técnica" subtitle="Compare potência e velocidade máxima de cada modelo Ford com os concorrentes do mesmo segmento.">
                 <View style={styles.searchBox}>
                     <Ionicons name="search" size={18} color="#9FB3C8" />
-                    <TextInput
-                        value={search}
-                        onChangeText={setSearch}
-                        placeholder="Pesquisar modelo"
-                        placeholderTextColor="#6F8398"
-                        style={styles.input}
-                        onSubmitEditing={() => void loadCars(search)}
-                    />
+                    <TextInput value={search} onChangeText={setSearch} placeholder="Pesquisar modelo" placeholderTextColor="#6F8398" style={styles.input} onSubmitEditing={() => void buscar(search)} />
                 </View>
                 <View style={styles.actionRow}>
-                    <PrimaryButton label="Gerar análise" onPress={() => void loadCars(search)} />
-                    <PrimaryButton label="Ver concessionarias" onPress={() => router.push('/concessionarias')} variant="secondary" />
+                    <PrimaryButton label="Gerar análise" onPress={() => void buscar(search)} />
+                </View>
+                <View style={styles.filterRow}>
+                    {SUGESTOES.map((item) => (
+                        <Tag key={item} label={item} active={termoBuscado === item} onPress={() => { setSearch(item); void buscar(item); }} />
+                    ))}
                 </View>
                 {error ? <Text style={styles.error}>{error}</Text> : null}
             </Section>
 
-            {!loading && !selectedCar && !error ? <View style={styles.emptyState}><Text style={styles.emptyTitle}>Encontre seu modelo Ford</Text><Text style={styles.emptyText}>Digite um modelo como Ranger, Mustang ou Territory para consultar a ficha técnica.</Text></View> : null}
-
             {loading ? (
                 <View style={styles.loadingBox}>
                     <ActivityIndicator color="#9FD4FF" />
-                    <Text style={styles.loadingText}>Carregando análise...</Text>
+                    <Text style={styles.loadingText}>Carregando comparação...</Text>
                 </View>
-            ) : selectedCar ? (
-                <Section title={carLabel(selectedCar)} subtitle={carSubtitle(selectedCar)}>
+            ) : semSegmento ? (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyTitle}>Sem dados para "{termoBuscado}"</Text>
+                    <Text style={styles.emptyText}>Escolha um dos modelos sugeridos acima para ver a comparação com os concorrentes.</Text>
+                </View>
+            ) : !termoBuscado ? (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyTitle}>Encontre seu modelo Ford</Text>
+                    <Text style={styles.emptyText}>Digite um modelo como Ranger, Mustang ou Territory para consultar a ficha técnica.</Text>
+                </View>
+            ) : referencia ? (
+                <Section title={`${referencia.modelo} vs. ${comparacao?.segmento}`} subtitle={`${rivais.length} concorrente(s) do mesmo segmento.`}>
                     <View style={styles.summaryCard}>
-                        <Text style={styles.summaryText}>{carFacts(selectedCar).join(' · ')}</Text>
                         <View style={styles.metricRow}>
                             <View style={styles.metric}>
-                                <Text style={styles.metricValue}>{selectedCar.enginePowerBhp ?? selectedCar.enginePowerKw ?? '—'}</Text>
-                                <Text style={styles.metricLabel}>Potencia</Text>
+                                <Text style={styles.metricValue}>{referencia.potencia ?? '—'}</Text>
+                                <Text style={styles.metricLabel}>Potência (cv)</Text>
                             </View>
                             <View style={styles.metric}>
-                                <Text style={styles.metricValue}>{selectedCar.topSpeedKph ?? '—'}</Text>
-                                <Text style={styles.metricLabel}>Velocidade</Text>
+                                <Text style={styles.metricValue}>{referencia.velocidade ?? '—'}</Text>
+                                <Text style={styles.metricLabel}>Velocidade (km/h)</Text>
                             </View>
                             <View style={styles.metric}>
-                                <Text style={styles.metricValue}>#{selectedCar.id}</Text>
-                                <Text style={styles.metricLabel}>Código do modelo</Text>
+                                <Text style={styles.metricValue}>{referencia.ano ?? '—'}</Text>
+                                <Text style={styles.metricLabel}>Ano</Text>
                             </View>
                         </View>
+                        {media ? <Text style={styles.summaryText}>{`Ford está ${media.texto} cv em relação à média dos concorrentes (${media.media} cv).`}</Text> : null}
+                        {maisForte ? <Text style={styles.summaryText}>{`Concorrente mais forte: ${maisForte.marca} ${maisForte.modelo} (${maisForte.potencia} cv).`}</Text> : null}
                     </View>
 
-                    <Bar label="Score estimado" value={selectedScore || 50} max={100} tone="#2F74FF" />
-                    <Bar label="Peso da potencia" value={Math.min(100, Math.round(((selectedCar.enginePowerBhp ?? 0) / 600) * 100))} max={100} tone="#51D0B1" />
-                    <Bar label="Peso no preco" value={Math.min(100, Math.round(((selectedCar.topSpeedKph ?? 0) / 300) * 100))} max={100} tone="#F2C94C" />
+                    <Bar label={`Ford ${referencia.modelo} · Potência`} value={referencia.potencia ?? 0} max={maximo} tone="#2F74FF" />
+                    <Bar label={`Ford ${referencia.modelo} · Velocidade`} value={referencia.velocidade ?? 0} max={maximo} tone="#51D0B1" />
+
+                    {rivais.map((rival) => {
+                        const diferenca = diferencaDoRival(referencia, rival);
+                        return (
+                            <View key={`${rival.marca}:${rival.modelo}`} style={styles.rivalBlock}>
+                                <View style={styles.rivalHeader}>
+                                    <Text style={styles.rivalName}>{rival.marca} {rival.modelo}</Text>
+                                    {diferenca ? <Text style={[styles.rivalBadge, diferenca.ford && styles.rivalBadgeGood]}>{diferenca.texto}</Text> : null}
+                                </View>
+                                <Bar label="Potência" value={rival.potencia ?? 0} max={maximo} tone="#E59F2F" />
+                                <Bar label="Velocidade" value={rival.velocidade ?? 0} max={maximo} tone="#B56C00" />
+                            </View>
+                        );
+                    })}
+
+                    {comparacao?.semDados.length ? <Text style={styles.notice}>Sem dados para: {comparacao.semDados.join(', ')}.</Text> : null}
                 </Section>
-            ) : null}
-
-            <Section title="Versões encontradas" subtitle={`${suggestions.length} opções encontradas para sua busca.`}>
-                {suggestions.length > 0 ? <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Comparativo tecnico</Text>
-                    <Text style={styles.chartLegend}>Potencia e velocidade maxima das versoes encontradas</Text>
-                    {suggestions.slice(0, 6).map((item) => <View key={item.id} style={styles.chartRow}>
-                        <Text style={styles.chartLabel} numberOfLines={1}>{carLabel(item)}</Text>
-                        <View style={styles.chartBars}>
-                            <View style={[styles.chartBar, styles.powerBar, { width: `${Math.min(100, ((item.enginePowerBhp ?? item.enginePowerKw ?? 0) / 600) * 100)}%` }]} />
-                            <View style={[styles.chartBar, styles.speedBar, { width: `${Math.min(100, ((item.topSpeedKph ?? 0) / 300) * 100)}%` }]} />
-                        </View>
-                    </View>)}
-                    <View style={styles.chartKey}><Text style={styles.keyPower}>Potencia</Text><Text style={styles.keySpeed}>Velocidade</Text></View>
-                </View> : null}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-                    {suggestions.map((item) => (
-                        <Pressable
-                            key={item.id}
-                            style={[styles.compCard, selectedCar?.id === item.id && styles.compCardActive]}
-                            onPress={() => setSelectedCar(item)}
-                        >
-                            <Text style={styles.compTitle}>{carLabel(item)}</Text>
-                            <Text style={styles.compMeta}>{carSubtitle(item)}</Text>
-                            <Text style={styles.compScore}>{item.enginePowerBhp ?? item.enginePowerKw ?? '—'}</Text>
-                        </Pressable>
-                    ))}
-                </ScrollView>
-            </Section>
-
-            <Section title="Modelos semelhantes" subtitle="Outros modelos que podem combinar com sua escolha.">
-                <FlatRecommendationList items={similarCars} onPress={(item) => setSelectedCar(item)} />
-            </Section>
+            ) : (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyTitle}>Sem dados para "{termoBuscado}"</Text>
+                    <Text style={styles.emptyText}>A API não retornou informações para este modelo agora. Tente novamente mais tarde.</Text>
+                </View>
+            )}
         </Screen>
     );
 }
 
-function FlatRecommendationList({ items, onPress }: { items: CarRecommendation[]; onPress: (item: CarRecommendation) => void }) {
-    if (!items.length) {
-        return <Text style={styles.emptyText}>Sem recomendacoes ainda. Faça uma busca acima.</Text>;
-    }
-
-    return (
-        <View style={styles.recList}>
-            {items.map((item) => (
-                <Pressable key={item.id} style={styles.recCard} onPress={() => onPress(item)}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.recTitle}>{carLabel(item)}</Text>
-                        <Text style={styles.recMeta}>{carSubtitle(item)}</Text>
-                    </View>
-                    <View style={styles.scorePill}>
-                        <Text style={styles.scoreText}>{Math.round(item.similarity)}</Text>
-                    </View>
-                </Pressable>
-            ))}
-        </View>
-    );
-}
-
 const styles = StyleSheet.create({
-    chartCard: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#D7E1E8',
-        padding: 16,
-        gap: 10,
-    },
-    chartTitle: { color: '#102A43', fontSize: 16, fontWeight: '800' },
-    chartLegend: { color: '#526B82', fontSize: 12 },
-    chartRow: { gap: 5 },
-    chartLabel: { color: '#315B7D', fontSize: 12 },
-    chartBars: { gap: 3 },
-    chartBar: { height: 7 },
-    powerBar: { backgroundColor: '#1261A0' },
-    speedBar: { backgroundColor: '#E59F2F' },
-    chartKey: { flexDirection: 'row', gap: 18 },
-    keyPower: { color: '#1261A0', fontSize: 11, fontWeight: '700' },
-    keySpeed: { color: '#B56C00', fontSize: 11, fontWeight: '700' },
     searchBox: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -244,9 +193,18 @@ const styles = StyleSheet.create({
         gap: 12,
         flexWrap: 'wrap',
     },
+    filterRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
     error: {
         color: '#B42318',
         fontSize: 13,
+    },
+    notice: {
+        color: '#8A6D1D',
+        fontSize: 12,
     },
     loadingBox: {
         alignItems: 'center',
@@ -264,12 +222,12 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D7E1E8',
         padding: 16,
-        gap: 14,
+        gap: 10,
     },
     summaryText: {
         color: '#315B7D',
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 13,
+        lineHeight: 19,
     },
     metricRow: {
         flexDirection: 'row',
@@ -320,72 +278,30 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 999,
     },
-    horizontalList: {
-        gap: 12,
-        paddingRight: 4,
+    rivalBlock: {
+        gap: 8,
+        paddingTop: 10,
+        marginTop: 6,
+        borderTopWidth: 1,
+        borderTopColor: '#E5ECF1',
     },
-    compCard: {
-        width: 160,
-        borderRadius: 18,
-        backgroundColor: '#E8F0F7',
-        borderWidth: 1,
-        borderColor: '#22354A',
-        padding: 14,
-        gap: 6,
-    },
-    compCardActive: {
-        borderColor: '#2F74FF',
-    },
-    compTitle: {
-        color: '#102A43',
-        fontSize: 15,
-        fontWeight: '800',
-    },
-    compMeta: {
-        color: '#526B82',
-        fontSize: 12,
-    },
-    compScore: {
-        color: '#9FD4FF',
-        fontSize: 26,
-        fontWeight: '900',
-        marginTop: 8,
-    },
-    recList: {
-        gap: 10,
-    },
-    recCard: {
+    rivalHeader: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 12,
-        backgroundColor: '#E8F0F7',
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: '#22354A',
-        padding: 14,
     },
-    recTitle: {
+    rivalName: {
         color: '#102A43',
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '800',
     },
-    recMeta: {
-        color: '#526B82',
+    rivalBadge: {
+        color: '#B42318',
         fontSize: 12,
-        marginTop: 2,
-    },
-    scorePill: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: '#2F74FF',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    scoreText: {
-        color: '#FFFFFF',
-        fontSize: 16,
         fontWeight: '800',
+    },
+    rivalBadgeGood: {
+        color: '#1D8A4A',
     },
     emptyText: {
         color: '#526B82',

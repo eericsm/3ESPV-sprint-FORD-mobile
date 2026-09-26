@@ -14,7 +14,7 @@ export default function FaleConoscoScreen() {
     const router = useRouter();
     const [query, setQuery] = useState('');
     const [messages, setMessages] = useState<Message[]>([
-        { author: 'seia', text: 'Oi, eu sou a SEIA. Posso ajudar com agendamentos, modelos, concessionarias e termos.' },
+        { author: 'seia', text: 'Oi, eu sou a SEIA. Posso ajudar com modelos e termos.' },
     ]);
 
     function send() {
@@ -52,9 +52,7 @@ export default function FaleConoscoScreen() {
             <Section title="Atalhos" subtitle="Abrindo as areas mais pedidas.">
                 <View style={styles.shortcutRow}>
                     {[
-                        ['Agendamentos', '/agendamentos'],
                         ['Modelos', '/modelos'],
-                        ['Concessionarias', '/concessionarias'],
                         ['Perfil', '/perfil'],
                     ].map(([item, route]) => (
                         <Pressable key={item} onPress={() => router.push(route as '/perfil')}><Text style={styles.shortcut}>{item}</Text></Pressable>

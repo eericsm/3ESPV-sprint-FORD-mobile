@@ -36,7 +36,7 @@ export default function LoginScreen() {
 
     return (
         <Screen>
-            <Section title="Entrar" subtitle="Acesse sua conta para ver recomendações, comparar modelos e agendar visitas.">
+            <Section title="Entrar" subtitle="Acesse sua conta para ver recomendações e comparar modelos.">
                 <View style={styles.form}>
                     <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor="#6F8398" autoCapitalize="none" keyboardType="email-address" />
                     <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Senha" placeholderTextColor="#6F8398" secureTextEntry />

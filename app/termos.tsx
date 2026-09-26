@@ -21,10 +21,10 @@ export default function TermsScreen() {
             <Section title="Termos e contratos" subtitle="Uma base simples para consentimento e continuidade da experiencia.">
                 <View style={styles.card}>
                     <ScrollView style={styles.scroll} contentContainerStyle={{ gap: 12 }}>
-                        <Text style={styles.body}>1. O usuario concorda em usar a plataforma para consultar modelos, concessionarias e servicos de agendamento.</Text>
+                        <Text style={styles.body}>1. O usuario concorda em usar a plataforma para consultar e comparar modelos Ford.</Text>
                         <Text style={styles.body}>2. As informacoes de recomendacao sao ilustrativas e podem ser atualizadas em novas versoes do app.</Text>
-                        <Text style={styles.body}>3. Você pode salvar favoritos, preferências e agendamentos para facilitar seu próximo acesso.</Text>
-                        <Text style={styles.body}>4. As informações exibidas são destinadas a ajudar na escolha do modelo e no agendamento de uma visita.</Text>
+                        <Text style={styles.body}>3. Você pode salvar favoritos e preferências para facilitar seu próximo acesso.</Text>
+                        <Text style={styles.body}>4. As informações exibidas são destinadas a ajudar na escolha do modelo ideal para sua rotina.</Text>
                     </ScrollView>
                 </View>
                 <Pressable style={styles.checkRow} onPress={() => setAccepted((current) => !current)}>

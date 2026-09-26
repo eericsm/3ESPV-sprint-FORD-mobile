@@ -1,25 +1,31 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '../src/components/Screen';
 import { Section } from '../src/components/Section';
-import { carFacts, carLabel } from '../src/data/ford';
-import { Car, getCar } from '../src/lib/ford-api';
+import { fordModels } from '../src/data/ford';
+import { buildComparisonRows } from '../src/lib/catalog';
+import { registerEvent } from '../src/lib/profile-service';
 
 export default function CompareScreen() {
     const router = useRouter();
     const { ids } = useLocalSearchParams<{ ids?: string }>();
-    const [cars, setCars] = useState<Car[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    const models = useMemo(() => {
+        const selectedIds = String(ids ?? '').split(',').filter(Boolean);
+        return fordModels.filter((model) => selectedIds.includes(model.id));
+    }, [ids]);
+
+    const rows = useMemo(() => buildComparisonRows(models), [models]);
 
     useEffect(() => {
-        const carIds = String(ids ?? '').split(',').filter(Boolean).map(Number);
-        Promise.all(carIds.map((id) => getCar(id)))
-            .then(setCars)
-            .catch(() => setCars([]))
-            .finally(() => setLoading(false));
-    }, [ids]);
+        if (models.length < 2) return;
+        for (const model of models) {
+            registerEvent(model.id, 'compare', model.name).catch(() => undefined);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [models.map((m) => m.id).join(',')]);
 
     return (
         <Screen>
@@ -30,29 +36,40 @@ export default function CompareScreen() {
                 </View>
                 <Pressable onPress={() => router.back()}><Text style={styles.back}>Voltar</Text></Pressable>
             </View>
-            {loading ? <ActivityIndicator color="#1261A0" /> : cars.length < 2 ? <Text style={styles.empty}>Selecione pelo menos dois modelos no catalogo.</Text> : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                    {cars.map((car) => <View key={car.id} style={styles.card}>
-                        <Text style={styles.segment}>{car.make ?? 'Ford'}</Text>
-                        <Text style={styles.name}>{carLabel(car)}</Text>
-                        <Text style={styles.price}>ID {car.id}</Text>
-                        <Section title="Ficha tecnica">
-                            <Metric label="Potencia" value={`${car.enginePowerBhp ?? car.enginePowerKw ?? '—'} cv`} />
-                            <Metric label="Velocidade maxima" value={`${car.topSpeedKph ?? '—'} km/h`} />
-                            <Metric label="Combustivel" value={car.engineFuelType ?? '—'} />
-                            <Metric label="Cambio" value={car.gearboxType ?? '—'} />
-                            <Metric label="Tracao" value={car.drivetrain ?? '—'} />
-                            <Text style={styles.facts}>{carFacts(car).join(' · ')}</Text>
-                        </Section>
-                    </View>)}
-                </ScrollView>
+            {models.length < 2 ? (
+                <Text style={styles.empty}>Selecione pelo menos dois modelos no catalogo.</Text>
+            ) : (
+                <>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+                        {models.map((model) => (
+                            <View key={model.id} style={styles.card}>
+                                <Text style={styles.segment}>{model.segment}</Text>
+                                <Text style={styles.name}>{model.name}</Text>
+                                <Text style={styles.price}>{model.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</Text>
+                                <Text style={styles.facts}>{model.facts.join(' · ')}</Text>
+                            </View>
+                        ))}
+                    </ScrollView>
+
+                    <Section title="Ficha comparativa" subtitle="Melhor valor de cada linha destacado.">
+                        {rows.map((row) => (
+                            <View key={row.rotulo} style={[styles.tableRow, row.igual && styles.tableRowDimmed]}>
+                                <Text style={styles.rowLabel}>{row.rotulo}</Text>
+                                <View style={styles.rowCells}>
+                                    {row.celulas.map((cell, i) => (
+                                        <View key={i} style={styles.cell}>
+                                            <Text style={styles.cellText}>{cell.texto}</Text>
+                                            {cell.selo ? <Text style={[styles.badge, cell.empate && styles.badgeTie]}>{cell.selo}</Text> : null}
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ))}
+                    </Section>
+                </>
             )}
         </Screen>
     );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-    return <View style={styles.metric}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -62,12 +79,46 @@ const styles = StyleSheet.create({
     back: { color: '#1261A0', fontWeight: '700' },
     empty: { color: '#526B82', fontSize: 15, lineHeight: 22 },
     row: { gap: 12, paddingRight: 18 },
-    card: { width: 270, padding: 16, gap: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D7E1E8' },
+    card: { width: 220, padding: 16, gap: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D7E1E8' },
     segment: { color: '#526B82', fontSize: 12, textTransform: 'uppercase', fontWeight: '700' },
-    name: { color: '#102A43', fontSize: 22, fontWeight: '900' },
+    name: { color: '#102A43', fontSize: 20, fontWeight: '900' },
     price: { color: '#1261A0', fontWeight: '700' },
-    metric: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#E5ECF1', paddingVertical: 9, gap: 8 },
-    label: { color: '#526B82', fontSize: 12, flex: 1 },
-    value: { color: '#102A43', fontSize: 13, fontWeight: '800', textAlign: 'right', flex: 1 },
     facts: { color: '#315B7D', fontSize: 12, lineHeight: 18 },
+    tableRow: {
+        gap: 8,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5ECF1',
+    },
+    tableRowDimmed: {
+        opacity: 0.5,
+    },
+    rowLabel: {
+        color: '#526B82',
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    rowCells: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 16,
+    },
+    cell: {
+        minWidth: 100,
+        gap: 2,
+    },
+    cellText: {
+        color: '#102A43',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    badge: {
+        color: '#1D8A4A',
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    badgeTie: {
+        color: '#7A8A99',
+    },
 });

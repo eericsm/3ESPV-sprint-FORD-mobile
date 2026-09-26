@@ -1,117 +1,234 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { Section } from '../../src/components/Section';
 import { StatCard } from '../../src/components/StatCard';
 import { Tag } from '../../src/components/Tag';
-import { calculateScore, fordModels } from '../../src/data/ford';
+import { GENERO_OPTIONS, fordModels } from '../../src/data/ford';
+import { UserProfileChanges, loadProfile, saveProfile } from '../../src/lib/profile-service';
+import { rankModels } from '../../src/lib/scoring';
 import { supabase } from '../../src/lib/supabase';
 
-const profileKey = 'seia-profile';
+const opcoesUso = ['Cidade', 'Estrada', 'Off-road', 'Trabalho'];
+const opcoesPassageiros = ['1 ou 2', '3 ou 4', '5 ou mais'];
+const opcoesPrioridade = ['Consumo', 'Espaço', 'Conforto', 'Potência'];
 
-const defaultProfile = {
-    name: '',
-    phone: '',
-    email: 'anthonio@gmail.com',
-    createdAt: new Date().toISOString().slice(0, 10),
-    usage: 'Cidade',
-    passengers: '3 ou 4',
-    budget: '',
-    priorities: [] as string[],
-    consent: false,
+const emptyProfile: UserProfileChanges = {
+    nome: '',
+    email: '',
+    idade: null,
+    genero: '',
+    telefone: '',
+    uso_principal: '',
+    passageiros: '',
+    rodagem_mensal: '',
+    orcamento: '',
+    prioridades: [],
+    carros_favoritos: [],
+    carros_comparados: [],
+    compartilha_com_concessionaria: false,
 };
 
 export default function PerfilScreen() {
     const router = useRouter();
-    const [profile, setProfile] = useState(defaultProfile);
-    const [favoritesCount, setFavoritesCount] = useState(0);
-    const [appointmentsCount, setAppointmentsCount] = useState(0);
-    const recommended = useMemo(() => fordModels.map((model) => ({ model, score: calculateScore(model.tags, profile.usage.toLowerCase().split(/[, ]+/), model.price, Number(profile.budget) || null) })).sort((a, b) => b.score - a.score).slice(0, 3), [profile]);
+    const [profile, setProfile] = useState<UserProfileChanges>(emptyProfile);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useFocusEffect(
         useCallback(() => {
-            AsyncStorage.getItem(profileKey)
-                .then((value) => value && setProfile((current) => ({ ...current, ...JSON.parse(value) })))
-                .catch(() => undefined);
+            let active = true;
 
-            AsyncStorage.getItem('seia-favorites').then((value) => setFavoritesCount(value ? JSON.parse(value).length : 0));
-            AsyncStorage.getItem('seia-agendamentos').then((value) => setAppointmentsCount(value ? JSON.parse(value).length : 0));
+            loadProfile()
+                .then((perfil) => {
+                    if (!active) return;
+                    if (perfil) {
+                        setProfile({
+                            nome: perfil.nome ?? '',
+                            email: perfil.email ?? '',
+                            idade: perfil.idade,
+                            genero: perfil.genero ?? '',
+                            telefone: perfil.telefone ?? '',
+                            uso_principal: perfil.uso_principal ?? '',
+                            passageiros: perfil.passageiros ?? '',
+                            rodagem_mensal: perfil.rodagem_mensal ?? '',
+                            orcamento: perfil.orcamento ?? '',
+                            prioridades: Array.isArray(perfil.prioridades) ? perfil.prioridades : [],
+                            carros_favoritos: perfil.carros_favoritos ?? [],
+                            carros_comparados: perfil.carros_comparados ?? [],
+                            compartilha_com_concessionaria: perfil.compartilha_com_concessionaria ?? false,
+                        });
+                    }
+                    setLoading(false);
+                })
+                .catch(() => {
+                    if (!active) return;
+                    setError('Não foi possível carregar o perfil salvo.');
+                    setLoading(false);
+                });
+
+            supabase?.auth.getUser().then(({ data }) => {
+                if (active && data.user?.email) setProfile((current) => ({ ...current, email: data.user!.email! }));
+            });
+
+            return () => {
+                active = false;
+            };
         }, []),
     );
 
-    async function saveProfile() {
-        await AsyncStorage.setItem(profileKey, JSON.stringify(profile));
+    const ranking = useMemo(
+        () =>
+            profile.uso_principal
+                ? rankModels(fordModels, {
+                      uso: profile.uso_principal,
+                      passageiros: profile.passageiros,
+                      orcamento: profile.orcamento,
+                      prioridades: profile.prioridades,
+                  })
+                : [],
+        [profile.uso_principal, profile.passageiros, profile.orcamento, profile.prioridades],
+    );
+
+    async function handleSave() {
+        setSaving(true);
+        setError(null);
+
+        try {
+            const saved = await saveProfile(profile);
+            setProfile((current) => ({ ...current, ...saved }));
+        } catch {
+            setError('Não foi possível salvar no banco. Confira sua conexão e tente novamente.');
+        } finally {
+            setSaving(false);
+        }
     }
 
     const initials = useMemo(() => {
-        return profile.name
+        const fromName = profile.nome
             .split(' ')
             .filter(Boolean)
             .slice(0, 2)
             .map((part) => part[0]?.toUpperCase() ?? '')
             .join('');
-    }, [profile.name]);
+        return fromName || (profile.email?.[0]?.toUpperCase() ?? 'SE');
+    }, [profile.nome, profile.email]);
 
-    useEffect(() => {
-        saveProfile().catch(() => undefined);
-    }, [profile]);
+    if (loading) {
+        return (
+            <Screen>
+                <View style={styles.loadingBox}>
+                    <ActivityIndicator color="#9FD4FF" />
+                </View>
+            </Screen>
+        );
+    }
 
     return (
         <Screen>
-            <Section title="Perfil" subtitle="Dados salvos localmente no dispositivo e resumo de favoritos e agendamentos.">
+            <Section title="Perfil" subtitle="Dados sincronizados com sua conta e resumo de favoritos.">
                 <View style={styles.profileHeader}>
                     <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{initials || 'SE'}</Text>
+                        <Text style={styles.avatarText}>{initials}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.name}>{profile.name || 'Perfil nao preenchido'}</Text>
+                        <Text style={styles.name}>{profile.nome || 'Perfil nao preenchido'}</Text>
                         <Text style={styles.meta}>{profile.email}</Text>
-                        <Text style={styles.meta}>Criado em {profile.createdAt}</Text>
                     </View>
                 </View>
                 <View style={styles.statsRow}>
-                    <StatCard label="Favoritos" value={String(favoritesCount)} />
-                    <StatCard label="Agendamentos" value={String(appointmentsCount)} tone="teal" />
+                    <StatCard label="Favoritos" value={String(profile.carros_favoritos.length)} />
                 </View>
             </Section>
 
             <Section title="Seus dados" subtitle="Edite o perfil e mantenha as preferencias sincronizadas.">
+                <Text style={styles.fieldLabel}>Uso principal</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {['Cidade', 'Estrada', 'Off-road', 'Trabalho'].map((item) => (
-                        <Text key={item} style={[styles.choice, profile.usage === item && styles.choiceActive]} onPress={() => setProfile((current) => ({ ...current, usage: item }))}>
-                            {item}
-                        </Text>
+                    {opcoesUso.map((item) => (
+                        <Tag key={item} label={item} active={profile.uso_principal === item} onPress={() => setProfile((current) => ({ ...current, uso_principal: item }))} />
                     ))}
                 </ScrollView>
+                <Text style={styles.fieldLabel}>Passageiros</Text>
                 <View style={styles.row}>
-                    {['1 ou 2', '3 ou 4', '5 ou mais'].map((item) => (
-                        <Text key={item} style={[styles.choice, profile.passengers === item && styles.choiceActive]} onPress={() => setProfile((current) => ({ ...current, passengers: item }))}>
-                            {item}
-                        </Text>
+                    {opcoesPassageiros.map((item) => (
+                        <Tag key={item} label={item} active={profile.passageiros === item} onPress={() => setProfile((current) => ({ ...current, passageiros: item }))} />
                     ))}
                 </View>
-                <TextInput style={styles.input} value={profile.name} onChangeText={(name) => setProfile((current) => ({ ...current, name }))} placeholder="Nome" placeholderTextColor="#6F8398" />
-                <TextInput style={styles.input} value={profile.phone} onChangeText={(phone) => setProfile((current) => ({ ...current, phone }))} placeholder="Telefone" placeholderTextColor="#6F8398" />
-                <TextInput style={styles.input} value={profile.budget} onChangeText={(budget) => setProfile((current) => ({ ...current, budget }))} placeholder="Orcamento" placeholderTextColor="#6F8398" />
+                <Text style={styles.fieldLabel}>Gênero</Text>
+                <View style={styles.row}>
+                    {GENERO_OPTIONS.map((item) => (
+                        <Tag key={item} label={item} active={profile.genero === item} onPress={() => setProfile((current) => ({ ...current, genero: item }))} />
+                    ))}
+                </View>
+                <TextInput style={styles.input} value={profile.nome} onChangeText={(nome) => setProfile((current) => ({ ...current, nome }))} placeholder="Nome" placeholderTextColor="#6F8398" />
+                <TextInput style={styles.input} value={profile.telefone} onChangeText={(telefone) => setProfile((current) => ({ ...current, telefone }))} placeholder="Telefone" placeholderTextColor="#6F8398" keyboardType="phone-pad" />
+                <TextInput
+                    style={styles.input}
+                    value={profile.idade === null ? '' : String(profile.idade)}
+                    onChangeText={(texto) => setProfile((current) => ({ ...current, idade: texto ? Number(texto.replace(/\D/g, '')) : null }))}
+                    placeholder="Idade"
+                    placeholderTextColor="#6F8398"
+                    keyboardType="number-pad"
+                />
+                <TextInput
+                    style={styles.input}
+                    value={profile.rodagem_mensal}
+                    onChangeText={(texto) => setProfile((current) => ({ ...current, rodagem_mensal: texto.replace(/\D/g, '') }))}
+                    placeholder="Rodagem mensal (km)"
+                    placeholderTextColor="#6F8398"
+                    keyboardType="number-pad"
+                />
+                <TextInput
+                    style={styles.input}
+                    value={profile.orcamento}
+                    onChangeText={(texto) => setProfile((current) => ({ ...current, orcamento: texto.replace(/\D/g, '') }))}
+                    placeholder="Orcamento"
+                    placeholderTextColor="#6F8398"
+                    keyboardType="number-pad"
+                />
                 <Text style={styles.fieldLabel}>Prioridades</Text>
-                <View style={styles.choiceRow}>{['Economia', 'Espaco', 'Performance', 'Tecnologia'].map((item) => <Tag key={item} label={item} active={profile.priorities.includes(item)} onPress={() => setProfile((current) => ({ ...current, priorities: current.priorities.includes(item) ? current.priorities.filter((priority) => priority !== item) : [...current.priorities, item] }))} />)}</View>
-                <Tag label="Aceito receber recomendações personalizadas" active={profile.consent} onPress={() => setProfile((current) => ({ ...current, consent: !current.consent }))} />
-                <PrimaryButton label="Salvar perfil" onPress={saveProfile} />
+                <View style={styles.choiceRow}>
+                    {opcoesPrioridade.map((item) => (
+                        <Tag
+                            key={item}
+                            label={item}
+                            active={profile.prioridades.includes(item)}
+                            onPress={() =>
+                                setProfile((current) => ({
+                                    ...current,
+                                    prioridades: current.prioridades.includes(item) ? current.prioridades.filter((p) => p !== item) : [...current.prioridades, item],
+                                }))
+                            }
+                        />
+                    ))}
+                </View>
+                <Tag
+                    label="Aceito compartilhar meus dados com a concessionaria"
+                    active={profile.compartilha_com_concessionaria}
+                    onPress={() => setProfile((current) => ({ ...current, compartilha_com_concessionaria: !current.compartilha_com_concessionaria }))}
+                />
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                {saving ? <ActivityIndicator color="#9FD4FF" /> : <PrimaryButton label="Salvar perfil" onPress={handleSave} />}
             </Section>
 
-            <Section title="Sua recomendacao" subtitle="Uma prévia baseada nas preferências salvas.">
-                {recommended.map(({ model, score }) => <View key={model.id} style={styles.recommendation}><Text style={styles.recommendationName}>{model.name}</Text><Text style={styles.recommendationScore}>{score}% compativel</Text></View>)}
-            </Section>
+            {ranking.length > 0 ? (
+                <Section title="Sua recomendacao" subtitle="Uma prévia baseada nas preferências salvas.">
+                    {ranking.slice(0, 3).map((item) => (
+                        <View key={item.id} style={styles.recommendation}>
+                            <Text style={styles.recommendationName}>{item.modelo}</Text>
+                            <Text style={styles.recommendationScore}>{item.cobertura !== null ? `${item.cobertura}% do orcamento coberto` : `${item.notaDeUso}% compativel`}</Text>
+                        </View>
+                    ))}
+                </Section>
+            ) : null}
 
             <Section title="Atalhos" subtitle="Leve o usuario para as areas que mais importam.">
                 <View style={styles.shortcutRow}>
                     <PrimaryButton label="Modelos" onPress={() => router.push('/modelos')} variant="secondary" />
-                    <PrimaryButton label="Agenda" onPress={() => router.push('/agendamentos')} variant="secondary" />
-                    <PrimaryButton label="Lojas" onPress={() => router.push('/concessionarias')} variant="secondary" />
                     <PrimaryButton label="Suporte" onPress={() => router.push('/fale-conosco')} variant="secondary" />
                 </View>
             </Section>
@@ -121,6 +238,11 @@ export default function PerfilScreen() {
 }
 
 const styles = StyleSheet.create({
+    loadingBox: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 40,
+    },
     profileHeader: {
         flexDirection: 'row',
         gap: 14,
@@ -167,23 +289,6 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 10,
     },
-    choice: {
-        color: '#315B7D',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 999,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#B8C9D8',
-        fontSize: 12,
-        fontWeight: '700',
-        overflow: 'hidden',
-    },
-    choiceActive: {
-        backgroundColor: '#2F74FF',
-        borderColor: '#2F74FF',
-        color: '#FFFFFF',
-    },
     input: {
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
@@ -203,4 +308,5 @@ const styles = StyleSheet.create({
     recommendation: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#D7E1E8' },
     recommendationName: { color: '#102A43', fontSize: 15, fontWeight: '800' },
     recommendationScore: { color: '#1261A0', fontSize: 13, fontWeight: '800' },
+    error: { color: '#B42318', fontSize: 13 },
 });

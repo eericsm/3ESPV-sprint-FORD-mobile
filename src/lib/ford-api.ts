@@ -31,7 +31,7 @@ export interface CarList {
     items: Car[];
 }
 
-const baseUrl = 'https://api-ford-linux-dkh6bkatgzbndddg.southafricanorth-01.azurewebsites.net';
+const baseUrl = process.env.EXPO_PUBLIC_FORD_API_URL ?? 'https://api-ford-linux-dkh6bkatgzbndddg.southafricanorth-01.azurewebsites.net';
 
 function buildQuery(params: Record<string, string | number | undefined>) {
     const searchParams = new URLSearchParams();

@@ -32,12 +32,12 @@ export default function LandingScreen() {
                     </View>
                 </View>
 
-                <Section title="Como o SEIA ajuda" subtitle="Do seu jeito de usar o carro até o próximo test-drive.">
+                <Section title="Como o SEIA ajuda" subtitle="Do seu jeito de usar o carro até a escolha do modelo.">
                     <View style={styles.featureList}>
                         {[
                             ['01', 'Descreva seu uso', 'Conte sua rotina, passageiros, estrada e orçamento.'],
                             ['02', 'Receba a recomendação', 'Veja os modelos que mais combinam com seu perfil.'],
-                            ['03', 'Compare e agende', 'Consulte a ficha técnica e marque seu test-drive.'],
+                            ['03', 'Compare a ficha técnica', 'Compare potência, velocidade e concorrentes do segmento.'],
                         ].map(([number, title, description]) => (
                             <View key={number} style={styles.featureItem}>
                                 <Text style={styles.featureNumber}>{number}</Text>

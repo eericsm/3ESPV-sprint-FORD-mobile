@@ -1,18 +1,20 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Screen } from '../../src/components/Screen';
 import { Section } from '../../src/components/Section';
 import { Tag } from '../../src/components/Tag';
-import { calculateScore, detectBudget, detectTags, fordModels } from '../../src/data/ford';
-import { Car, listCars } from '../../src/lib/ford-api';
+import { FordModel, calculateScore, fordModels } from '../../src/data/ford';
+import { buildComparisonRows } from '../../src/lib/catalog';
+import { loadProfile, registerEvent, saveFavorites } from '../../src/lib/profile-service';
 
 const categories = ['Todos', 'SUVs', 'Picapes', 'Esportivos', 'Comerciais'];
 const fuels = ['Todos', 'Combustao', 'Hibrido', 'Eletrico'];
 type SortMode = 'compatibilidade' | 'preco' | 'nome';
+const corteFraco = 70;
+const maxComparar = 3;
 
 function categoryKey(label: string) {
     return ({ SUVs: 'suv', Picapes: 'picape', Esportivos: 'esportivo', Comerciais: 'comercial' } as Record<string, string>)[label];
@@ -37,8 +39,8 @@ const modelImages: Record<string, number> = {
     'transit minibus': require('../../assets/models/transit-minibus.jpeg'),
 };
 
-function imageFor(modelName: string | null) {
-    const normalized = (modelName ?? '').toLowerCase();
+function imageFor(modelName: string) {
+    const normalized = modelName.toLowerCase();
     return Object.entries(modelImages).find(([name]) => normalized.includes(name))?.[1];
 }
 
@@ -52,44 +54,32 @@ export default function ModelosScreen() {
     const [maxPrice, setMaxPrice] = useState(600000);
     const [sortMode, setSortMode] = useState<SortMode>('compatibilidade');
     const [onlyCompatible, setOnlyCompatible] = useState(false);
+    const [onlyFavorites, setOnlyFavorites] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
-    const [items, setItems] = useState<Car[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     useFocusEffect(
         useCallback(() => {
-            AsyncStorage.getItem('seia-favorites')
-                .then((value) => setFavorites(value ? (JSON.parse(value) as string[]) : []))
-                .catch(() => setFavorites([]));
+            let active = true;
+            loadProfile()
+                .then((perfil) => active && setFavorites(perfil?.carros_favoritos ?? []))
+                .catch(() => active && setFavorites([]));
+            return () => {
+                active = false;
+            };
         }, []),
     );
 
-    async function loadCars(term = query) {
-        const trimmed = term.trim();
-        setLoading(true);
-        setError(null);
-
-        try {
-            const response = await listCars({ model: trimmed || undefined, limit: 20 });
-            setItems(response.items);
-        } catch {
-            setError('Não foi possível carregar os modelos. Tente novamente.');
-            setItems([]);
-        } finally {
-            setLoading(false);
-        }
+    async function toggleFavorite(model: FordModel) {
+        const adicionando = !favorites.includes(model.id);
+        const next = adicionando ? [...favorites, model.id] : favorites.filter((item) => item !== model.id);
+        setFavorites(next);
+        registerEvent(model.id, adicionando ? 'favorite' : 'unfavorite', model.name).catch(() => undefined);
+        saveFavorites(next).catch(() => undefined);
     }
 
-    useEffect(() => {
-        void loadCars('Ford');
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    async function toggleFavorite(id: string) {
-        const next = favorites.includes(String(id)) ? favorites.filter((item) => item !== String(id)) : [...favorites, String(id)];
-        setFavorites(next);
-        await AsyncStorage.setItem('seia-favorites', JSON.stringify(next));
+    function abrirFicha(model: FordModel) {
+        registerEvent(model.id, 'view', model.name).catch(() => undefined);
+        router.push({ pathname: '/dashboard', params: { model: model.name } });
     }
 
     const profileTags = useMemo(() => String(params.tags ?? '').split(',').filter(Boolean), [params.tags]);
@@ -97,43 +87,42 @@ export default function ModelosScreen() {
 
     const visible = useMemo(() => {
         const term = query.trim().toLowerCase();
-        const mapped = items.map((item) => {
-            const model = fordModels.find((candidate) => item.model?.toLowerCase().includes(candidate.name.toLowerCase().split(' ')[0]));
-            const score = model ? calculateScore(model.tags, profileTags, model.price, profileBudget) : null;
-            return { item, model, score };
-        });
+        const mapped = fordModels.map((model) => ({ model, score: calculateScore(model.tags, profileTags, model.price, profileBudget) }));
+
         return mapped
-            .filter(({ item, model, score }) => {
-                if (term && !`${item.model ?? ''} ${item.variant ?? ''}`.toLowerCase().includes(term)) return false;
-                if (category !== 'Todos' && model && model.category !== categoryKey(category)) return false;
-                if (fuel !== 'Todos' && model && model.fuel !== fuelKey(fuel)) return false;
-                if (model && model.price > maxPrice) return false;
-                if (onlyCompatible && (score ?? 0) < 70) return false;
+            .filter(({ model, score }) => {
+                if (category !== 'Todos' && model.category !== categoryKey(category)) return false;
+                if (fuel !== 'Todos' && model.fuel !== fuelKey(fuel)) return false;
+                if (model.price > maxPrice) return false;
+                if (onlyCompatible && score < corteFraco) return false;
+                if (onlyFavorites && !favorites.includes(model.id)) return false;
+                if (term && !model.name.toLowerCase().includes(term) && !model.segment.toLowerCase().includes(term)) return false;
                 return true;
             })
-            .sort((a, b) => sortMode === 'preco'
-                ? (a.model?.price ?? 0) - (b.model?.price ?? 0)
-                : sortMode === 'nome'
-                    ? (a.item.model ?? '').localeCompare(b.item.model ?? '', 'pt-BR')
-                    : (b.score ?? -1) - (a.score ?? -1));
-    }, [items, query, category, fuel, maxPrice, sortMode, onlyCompatible, profileTags, profileBudget]);
+            .sort((a, b) =>
+                sortMode === 'preco'
+                    ? a.model.price - b.model.price
+                    : sortMode === 'nome'
+                        ? a.model.name.localeCompare(b.model.name, 'pt-BR')
+                        : b.score - a.score,
+            );
+    }, [query, category, fuel, maxPrice, sortMode, onlyCompatible, onlyFavorites, favorites, profileTags, profileBudget]);
 
     function toggleSelected(id: string) {
-        setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length < 3 ? [...current, id] : current);
+        setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : current.length < maxComparar ? [...current, id] : current));
     }
+
+    const comparisonRows = useMemo(() => {
+        if (selected.length < 2) return [];
+        const models = fordModels.filter((m) => selected.includes(m.id));
+        return buildComparisonRows(models);
+    }, [selected]);
 
     return (
         <Screen>
             <Section title="Modelos Ford" subtitle="Explore a linha Ford, filtre por categoria e compare suas opções.">
                 <View style={styles.searchBox}>
-                    <TextInput
-                        value={query}
-                        onChangeText={setQuery}
-                        placeholder="Buscar por nome ou marca"
-                        placeholderTextColor="#6F8398"
-                        style={styles.input}
-                        onSubmitEditing={() => void loadCars(query)}
-                    />
+                    <TextInput value={query} onChangeText={setQuery} placeholder="Buscar por nome ou segmento" placeholderTextColor="#6F8398" style={styles.input} />
                 </View>
                 <Text style={styles.filterLabel}>Categoria</Text>
                 <View style={styles.filterRow}>{categories.map((item) => <Tag key={item} label={item} active={category === item} onPress={() => setCategory(item)} />)}</View>
@@ -142,55 +131,87 @@ export default function ModelosScreen() {
                 <View style={styles.filterRow}>
                     {(['compatibilidade', 'preco', 'nome'] as SortMode[]).map((item) => <Tag key={item} label={`Ordenar: ${item}`} active={sortMode === item} onPress={() => setSortMode(item)} />)}
                     <Tag label="So compativeis" active={onlyCompatible} onPress={() => setOnlyCompatible((current) => !current)} />
+                    <Tag label="So favoritos" active={onlyFavorites} onPress={() => setOnlyFavorites((current) => !current)} />
                 </View>
                 <Text style={styles.filterLabel}>Preco maximo: R$ {maxPrice.toLocaleString('pt-BR')}</Text>
                 <View style={styles.filterRow}>{[250000, 400000, 600000].map((price) => <Tag key={price} label={`Ate ${price / 1000} mil`} active={maxPrice === price} onPress={() => setMaxPrice(price)} />)}</View>
-                <PrimaryButton label="Atualizar modelos" onPress={() => void loadCars(query)} variant="secondary" />
-                {error ? <Text style={styles.error}>{error}</Text> : null}
             </Section>
 
-            <Section title="Modelos Ford" subtitle={loading ? 'Carregando...' : `${visible.length} de ${items.length} modelos exibidos`}>
-                {loading ? (
-                    <View style={styles.loadingBox}>
-                        <ActivityIndicator color="#9FD4FF" />
-                    </View>
-                ) : (
-                    <FlatList
-                        data={visible}
-                        keyExtractor={({ item }) => String(item.id)}
-                        scrollEnabled={false}
-                        ItemSeparatorComponent={() => <View style={styles.separator} />}
-                        renderItem={({ item: result }) => {
-                            const { item, model, score } = result;
-                            const favorite = favorites.includes(String(item.id));
-                            const isSelected = selected.includes(String(item.id));
-                            return (
-                                <Pressable style={[styles.card, isSelected && styles.cardSelected]} onPress={() => router.push({ pathname: '/dashboard', params: { model: [item.model, item.variant].filter(Boolean).join(' ') } })}>
-                                    {imageFor(item.model) ? <Image source={imageFor(item.model)} style={styles.modelImage} resizeMode="cover" /> : null}
-                                    <View style={styles.cardHeader}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.cardTitle}>{[item.model, item.variant].filter(Boolean).join(' ') || `Modelo #${item.id}`}</Text>
-                                            <Text style={styles.cardMeta}>{item.make ?? 'Ford'}{item.yearFrom ? ` · ${item.yearFrom}` : ''}</Text>
-                                        </View>
-                                        <Pressable onPress={() => void toggleFavorite(String(item.id))} hitSlop={10}>
-                                            <Text style={[styles.favorite, favorite && styles.favoriteActive]}>{favorite ? 'Favorito' : 'Salvar'}</Text>
-                                        </Pressable>
+            <Section title="Modelos Ford" subtitle={`${visible.length} de ${fordModels.length} modelos exibidos`}>
+                <FlatList
+                    data={visible}
+                    keyExtractor={({ model }) => model.id}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={() => <View style={styles.separator} />}
+                    renderItem={({ item: result }) => {
+                        const { model, score } = result;
+                        const favorite = favorites.includes(model.id);
+                        const isSelected = selected.includes(model.id);
+                        const image = imageFor(model.name);
+                        return (
+                            <Pressable style={[styles.card, isSelected && styles.cardSelected]} onPress={() => abrirFicha(model)}>
+                                {image ? <Image source={image} style={styles.modelImage} resizeMode="cover" /> : null}
+                                <View style={styles.cardHeader}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.cardTitle}>{model.name}</Text>
+                                        <Text style={styles.cardMeta}>{model.segment}</Text>
                                     </View>
-                                    {score !== null ? <><Text style={styles.compatibility}>{score}% compativel</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${score}%` }]} /></View></> : null}
-                                    <Text style={styles.cardFacts}>{[item.engineFuelType, item.enginePowerBhp ? `${item.enginePowerBhp} cv` : null, item.gearboxType, item.drivetrain].filter(Boolean).join(' · ') || 'Ficha técnica em atualização'}</Text>
-                                    <View style={styles.cardFooter}>
-                                        <Text style={styles.cardPrice}>{model ? model.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : `ID ${item.id}`}</Text>
-                                        <Text style={styles.cardRating}>Vel {item.topSpeedKph ?? '—'}</Text>
-                                    </View>
-                                    <Pressable style={[styles.compareButton, isSelected && styles.compareButtonActive]} onPress={() => toggleSelected(String(item.id))}><Text style={styles.compareButtonText}>{isSelected ? 'Selecionado' : 'Comparar'}</Text></Pressable>
+                                    <Pressable onPress={() => void toggleFavorite(model)} hitSlop={10}>
+                                        <Text style={[styles.favorite, favorite && styles.favoriteActive]}>{favorite ? 'Favorito' : 'Salvar'}</Text>
+                                    </Pressable>
+                                </View>
+                                <Text style={styles.compatibility}>{score}% compativel</Text>
+                                <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${score}%` }]} /></View>
+                                <Text style={styles.cardFacts}>{model.facts.join(' · ')}</Text>
+                                <View style={styles.cardFooter}>
+                                    <Text style={styles.cardPrice}>{model.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</Text>
+                                </View>
+                                <Pressable style={[styles.compareButton, isSelected && styles.compareButtonActive]} onPress={() => toggleSelected(model.id)}>
+                                    <Text style={styles.compareButtonText}>{isSelected ? 'Selecionado' : 'Comparar'}</Text>
                                 </Pressable>
-                            );
+                            </Pressable>
+                        );
+                    }}
+                />
+            </Section>
+
+            {comparisonRows.length > 0 ? (
+                <Section title="Comparacao rapida" subtitle="Melhor valor de cada linha destacado.">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View>
+                            {comparisonRows.map((row) => (
+                                <View key={row.rotulo} style={[styles.compareRow, row.igual && styles.compareRowDimmed]}>
+                                    <Text style={styles.compareRowLabel}>{row.rotulo}</Text>
+                                    <View style={styles.compareRowCells}>
+                                        {row.celulas.map((cell, i) => (
+                                            <View key={i} style={styles.compareCell}>
+                                                <Text style={styles.compareCellText}>{cell.texto}</Text>
+                                                {cell.selo ? <Text style={[styles.compareBadge, cell.empate && styles.compareBadgeTie]}>{cell.selo}</Text> : null}
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+                </Section>
+            ) : null}
+
+            {selected.length > 0 ? (
+                <View style={styles.compareBar}>
+                    <Text style={styles.compareCount}>{selected.length} de {maxComparar} modelos selecionados</Text>
+                    <PrimaryButton
+                        label="Comparar lado a lado"
+                        onPress={() => {
+                            for (const id of selected) {
+                                const model = fordModels.find((m) => m.id === id);
+                                if (model) registerEvent(model.id, 'compare', model.name).catch(() => undefined);
+                            }
+                            router.push({ pathname: '/compare', params: { ids: selected.join(',') } });
                         }}
                     />
-                )}
-            </Section>
-
-            {selected.length > 0 ? <View style={styles.compareBar}><Text style={styles.compareCount}>{selected.length} de 3 modelos selecionados</Text><PrimaryButton label="Comparar lado a lado" onPress={() => router.push({ pathname: '/compare', params: { ids: selected.join(',') } })} /></View> : null}
+                </View>
+            ) : null}
 
             <PrimaryButton label={`Favoritos salvos: ${favorites.length}`} onPress={() => router.push('/perfil')} variant="secondary" />
         </Screen>
@@ -224,15 +245,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-    },
-    error: {
-        color: '#F3B1B1',
-        fontSize: 13,
-    },
-    loadingBox: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
     },
     separator: {
         height: 10,
@@ -289,10 +301,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
     },
-    cardRating: {
-        color: '#526B82',
-        fontSize: 13,
-    },
     compatibility: {
         color: '#1261A0',
         fontSize: 13,
@@ -331,5 +339,43 @@ const styles = StyleSheet.create({
         color: '#102A43',
         fontSize: 14,
         fontWeight: '700',
+    },
+    compareRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5ECF1',
+    },
+    compareRowDimmed: {
+        opacity: 0.5,
+    },
+    compareRowLabel: {
+        width: 130,
+        color: '#526B82',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    compareRowCells: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    compareCell: {
+        width: 130,
+        gap: 2,
+    },
+    compareCellText: {
+        color: '#102A43',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    compareBadge: {
+        color: '#1D8A4A',
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    compareBadgeTie: {
+        color: '#7A8A99',
     },
 });
