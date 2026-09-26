@@ -56,7 +56,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
 EXPO_PUBLIC_FORD_API_URL=https://api-ford-linux-dkh6bkatgzbndddg.southafricanorth-01.azurewebsites.net
 ```
 
-Obtenha os valores do Supabase em **Supabase Dashboard -> Project Settings -> API**. Use a chave pública publishable/anon. Nunca use a chave `service_role`.
+Obtenha os valores do Supabase em **Supabase Dashboard -> Project Settings -> API**. Use a chave pública publishable/anon.
 
 Para usar o mesmo backend do site, use os mesmos valores de Supabase e de API da Ford configurados lá.
 
@@ -79,16 +79,6 @@ npx expo start --tunnel
 ```
 
 O script `npm run android` é destinado a um emulador ou dispositivo Android com `adb`; ele não é necessário ao usar o Expo Go no celular.
-
-## Checklist de testes
-
-1. Abra o aplicativo e verifique a tela inicial e a imagem do veículo.
-2. Crie uma conta ou entre usando o projeto Supabase utilizado pelo site.
-3. Descreva uma rotina no portal e confira as notas de compatibilidade.
-4. Teste os filtros, a ordenação, os favoritos e a comparação de veículos.
-5. Abra uma análise técnica e verifique as métricas e a comparação com os concorrentes do segmento.
-6. Salve as preferências do perfil, confira as recomendações e teste o logout.
-7. Abra o suporte e teste as respostas da FAQ, os atalhos e o contato telefônico.
 
 ## Gerar o APK Android
 
@@ -119,12 +109,23 @@ Teste os módulos nativos também em um APK/development build, além do Expo Go.
 
 ## Relação com o site Angular
 
-O projeto Angular é a referência do produto. O aplicativo adapta o layout desktop para telas sensíveis ao toque, preservando a mesma marca, linguagem, conceitos de recomendação, regras de pontuação, catálogo, fluxo de comparação, autenticação e hierarquia do produto. O app mobile não é um WebView — é uma implementação nativa separada que usa os mesmos serviços de backend (API da Ford e Supabase).
+O projeto Angular é a referência do produto. O aplicativo adapta o layout desktop para telas sensíveis ao toque, preservando a mesma marca, linguagem, conceitos de recomendação, regras de pontuação, catálogo, fluxo de comparação, autenticação e hierarquia do produto. O app mobile não é um WebView, é uma implementação nativa separada que usa os mesmos serviços de backend (API da Ford e Supabase).
 
 Quando um comportamento ou texto mudar no site, atualize a tela mobile correspondente para que os dois aplicativos continuem parecendo o mesmo produto.
 
-## Notas
+## Integrantes
 
-- Este projeto pode ser movido para um repositório próprio mais tarde.
-- A interface é pensada para mobile, não é uma cópia direta do layout do site.
-- Ao adicionar novas chaves de backend ou configurações de API, mantenha-as no `.env` e também nas variáveis de ambiente do EAS.
+- Joao Victor Oliveira dos Santos - RM557948
+- Matheus Alcântara Estevão - RM558193
+- Nicolle Pellegrino Jelinski - RM558610
+- Pedro Pereira dos Santos - RM552047
+- Eric Segawa Montagner - RM558224
+
+## video
+
+https://youtube.com/shorts/hua3S7qjJuo?feature=share
+
+## build
+
+https://expo.dev/accounts/eericorp/projects/seia-mobile/builds/9b727322-55ff-4ea1-8181-03571fa00000
+
