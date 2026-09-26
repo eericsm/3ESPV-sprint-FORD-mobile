@@ -127,5 +127,5 @@ https://youtube.com/shorts/hua3S7qjJuo?feature=share
 
 ## build
 
-https://expo.dev/accounts/eericorp/projects/seia-mobile/builds/9b727322-55ff-4ea1-8181-03571fa00000
+https://expo.dev/accounts/eericorp/projects/seia-mobile/builds/d0638289-95f4-4bf4-b885-c85311fbf03f
 
